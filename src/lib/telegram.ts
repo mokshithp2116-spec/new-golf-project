@@ -16,15 +16,24 @@ export async function sendTelegramAdminLoginNotification({
   ip,
 }: TelegramLoginNotificationParams): Promise<void> {
   try {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = process.env.TELEGRAM_CHAT_ID;
+    // Retrieve and sanitize environment variables (removing accidental quotes/whitespace)
+    const rawToken = process.env.TELEGRAM_BOT_TOKEN?.trim().replace(/^["']|["']$/g, '');
+    const chatId = process.env.TELEGRAM_CHAT_ID?.trim().replace(/^["']|["']$/g, '');
 
-    if (!botToken || !chatId) {
+    const hasToken = Boolean(rawToken && rawToken.length > 0);
+    const hasChatId = Boolean(chatId && chatId.length > 0);
+
+    if (!hasToken || !hasChatId) {
       console.warn(
-        '[Telegram] Notification skipped: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID environment variable is missing.'
+        `[Telegram] Notification skipped due to missing environment variables. (TELEGRAM_BOT_TOKEN: ${
+          hasToken ? 'PRESENT' : 'MISSING'
+        }, TELEGRAM_CHAT_ID: ${hasChatId ? 'PRESENT' : 'MISSING'})`
       );
       return;
     }
+
+    // Strip duplicate 'bot' prefix if user included 'bot' in TELEGRAM_BOT_TOKEN env variable
+    const botToken = rawToken!.startsWith('bot') ? rawToken!.slice(3) : rawToken!;
 
     const timeString = new Date().toLocaleString('en-US', {
       dateStyle: 'full',
@@ -44,6 +53,10 @@ export async function sendTelegramAdminLoginNotification({
 
     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
+    // Timeout after 5 seconds to prevent serverless function hangs
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     const res = await fetch(url, {
       method: 'POST',
       headers: {
@@ -53,15 +66,25 @@ export async function sendTelegramAdminLoginNotification({
         chat_id: chatId,
         text: message,
       }),
+      signal: controller.signal,
     });
 
+    clearTimeout(timeoutId);
+
     if (!res.ok) {
-      const errorResponse = await res.text();
+      const errorText = await res.text();
       console.error(
-        `[Telegram] Failed to send notification. Status: ${res.status}, Response: ${errorResponse}`
+        `[Telegram] API request failed with HTTP ${res.status}: ${errorText}`
       );
+    } else {
+      console.log('[Telegram] Admin login notification sent successfully.');
     }
-  } catch (error) {
-    console.error('[Telegram] Unexpected error while sending login notification:', error);
+  } catch (error: unknown) {
+    const err = error as { name?: string; message?: string };
+    if (err?.name === 'AbortError') {
+      console.error('[Telegram] Notification request timed out after 5000ms.');
+    } else {
+      console.error('[Telegram] Unexpected error while sending notification:', err?.message || error);
+    }
   }
 }

@@ -72,6 +72,8 @@ export async function POST(request: Request) {
     // Safely retrieve client IP address
     const ip = getClientIp(request);
 
+    console.log(`[Admin Login] Successful login for: ${matched.email} - triggering Telegram notification`);
+
     // Send Telegram notification (guaranteed non-blocking failure)
     await sendTelegramAdminLoginNotification({
       name: matched.name,
