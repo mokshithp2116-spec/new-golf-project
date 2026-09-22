@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { sendTelegramAdminLoginNotification } from '@/lib/telegram';
 
 // Server-side administrator credentials (never exposed to client JavaScript)
 const VALID_ADMINS = [
@@ -6,6 +7,23 @@ const VALID_ADMINS = [
   { username: 'mohith p1234', email: 'mohith@digitalheroes.com', pass: 'mohith 3344', name: 'MOHITH P1234', id: 'admin-3' },
   { username: 'admin', email: 'admin@digitalheroes.com', pass: 'admin2026', name: 'Alex Rivera', id: 'admin-1' },
 ];
+
+function getClientIp(request: Request): string {
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  if (forwardedFor) {
+    const firstIp = forwardedFor.split(',')[0].trim();
+    if (firstIp) return firstIp;
+  }
+  const realIp = request.headers.get('x-real-ip');
+  if (realIp && realIp.trim()) {
+    return realIp.trim();
+  }
+  const cfIp = request.headers.get('cf-connecting-ip');
+  if (cfIp && cfIp.trim()) {
+    return cfIp.trim();
+  }
+  return 'Unknown';
+}
 
 export async function POST(request: Request) {
   try {
@@ -50,6 +68,16 @@ export async function POST(request: Request) {
         { status: 401 }
       );
     }
+
+    // Safely retrieve client IP address
+    const ip = getClientIp(request);
+
+    // Send Telegram notification (guaranteed non-blocking failure)
+    await sendTelegramAdminLoginNotification({
+      name: matched.name,
+      email: matched.email,
+      ip,
+    });
 
     // Create response with HttpOnly session cookie
     const sessionData = {
