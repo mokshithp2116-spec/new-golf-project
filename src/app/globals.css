@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+@layer base {
+  :root, html.dark {
+    --bg-primary: #0b0e14;
+    --bg-secondary: #121824;
+    --bg-card: rgba(22, 29, 44, 0.7);
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --accent-terracotta: #e0633b;
+    --accent-terracotta-hover: #c9512a;
+    --accent-gold: #f59e0b;
+    --accent-sage: #34d399;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+  }
+
+  html.light {
+    --bg-primary: #f8fafc;
+    --bg-secondary: #ffffff;
+    --bg-card: #ffffff;
+    --border-subtle: #e2e8f0;
+    --accent-terracotta: #ea580c;
+    --accent-terracotta-hover: #c2410c;
+    --accent-gold: #d97706;
+    --accent-sage: #059669;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    min-height: 100vh;
+    overflow-x: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+html.light body {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html.light .glass-panel {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05) !important;
+  color: #0f172a !important;
+}
+
+html.light .glass-panel-hover:hover {
+  background: #f1f5f9 !important;
+  border-color: #ea580c !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+}
+
+html.light .text-slate-100,
+html.light .text-slate-200,
+html.light .text-white {
+  color: #0f172a !important;
+}
+
+html.light .text-slate-300,
+html.light .text-slate-400 {
+  color: #334155 !important;
+}
+
+html.light .text-slate-500 {
+  color: #64748b !important;
+}
+
+html.light .bg-\[\#0b0e14\],
+html.light .bg-\[\#121824\],
+html.light .bg-\[\#111622\],
+html.light .bg-\[\#141a29\] {
+  background-color: #ffffff !important;
+}
+
+/* Gradient accents */
+.text-gradient-hero {
+  background: linear-gradient(135deg, #ffffff 30%, #e0633b 70%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-gold {
+  background: linear-gradient(135deg, #fef08a 0%, #f59e0b 60%, #b45309 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-impact {
+  background: linear-gradient(135deg, #a7f3d0 0%, #34d399 60%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Lottery ball styles */
+.ball-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: #ffffff;
+  background: radial-gradient(circle at 35% 35%, #2a3447, #131926);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.15), 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.ball-winning {
+  background: radial-gradient(circle at 35% 35%, #f97316, #b43403);
+  border-color: #fdba74;
+  box-shadow: 0 0 16px rgba(249, 115, 22, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+}
+
+.ball-matched {
+  background: radial-gradient(circle at 35% 35%, #10b981, #065f46);
+  border-color: #6ee7b7;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+}
+
+/* Pulse animation for live draw alerts */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(224, 99, 59, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(224, 99, 59, 0.5);
+  }
+}
+
+.pulse-glow {
+  animation: pulseGlow 3s infinite ease-in-out;
+}
