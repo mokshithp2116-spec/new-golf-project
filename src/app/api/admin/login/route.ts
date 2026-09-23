@@ -1,98 +1,103 @@
 import { NextResponse } from 'next/server';
-import { sendTelegramAdminLoginNotification } from '@/lib/telegram';
+import bcrypt from 'bcryptjs';
+import { dbGetUserByEmail } from '@/lib/db';
+import { sendAuthNotification } from '@/lib/notifications';
 
-// Server-side administrator credentials (never exposed to client JavaScript)
-const VALID_ADMINS = [
-  { username: 'mokshith p1642', email: 'mokshith@digitalheroes.com', pass: '1642 1642', name: 'Mokshith P1642', id: 'admin-2' },
-  { username: 'mohith p1234', email: 'mohith@digitalheroes.com', pass: 'mohith 3344', name: 'MOHITH P1234', id: 'admin-3' },
-  { username: 'admin', email: 'admin@digitalheroes.com', pass: 'admin2026', name: 'Alex Rivera', id: 'admin-1' },
-];
+export const dynamic = 'force-dynamic';
 
 function getClientIp(request: Request): string {
   const forwardedFor = request.headers.get('x-forwarded-for');
-  if (forwardedFor) {
-    const firstIp = forwardedFor.split(',')[0].trim();
-    if (firstIp) return firstIp;
-  }
-  const realIp = request.headers.get('x-real-ip');
-  if (realIp && realIp.trim()) {
-    return realIp.trim();
-  }
-  const cfIp = request.headers.get('cf-connecting-ip');
-  if (cfIp && cfIp.trim()) {
-    return cfIp.trim();
-  }
-  return 'Unknown';
+  if (forwardedFor) return forwardedFor.split(',')[0].trim();
+  return request.headers.get('x-real-ip') || 'Unknown';
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { username, password } = body;
+    const { username, email, password } = body;
 
-    if (!username || !password) {
+    const inputEmail = (email || username || '').trim().toLowerCase();
+    const cleanPassword = (password || '').trim();
+    const ip = getClientIp(request);
+    const userAgent = request.headers.get('user-agent') || undefined;
+
+    if (!inputEmail || !cleanPassword) {
       return NextResponse.json(
-        { success: false, message: 'Username and password are required.' },
+        { success: false, message: 'Administrator email and password are required.' },
         { status: 400 }
       );
     }
 
-    const cleanInput = String(username).trim().toLowerCase();
-    const cleanPass = String(password).trim().toLowerCase();
+    // 1. Fetch user from database
+    const user = dbGetUserByEmail(inputEmail);
+    if (!user) {
+      await sendAuthNotification({
+        event: 'FAILED_LOGIN',
+        name: 'Unknown Admin User',
+        email: inputEmail,
+        ip,
+        userAgent,
+        details: 'Admin login attempt with non-existent email',
+      });
 
-    // Match administrator by username, email, or space-stripped username
-    const matched = VALID_ADMINS.find((admin) => {
-      const normName = admin.username.toLowerCase();
-      const normEmail = admin.email.toLowerCase();
-      const matchIdentity =
-        normName === cleanInput ||
-        normEmail === cleanInput ||
-        normName.replace(/\s+/g, '') === cleanInput.replace(/\s+/g, '') ||
-        (cleanInput.includes('mokshith') && admin.id === 'admin-2') ||
-        (cleanInput.includes('mohith') && admin.id === 'admin-3');
-
-      if (!matchIdentity) return false;
-
-      const normTargetPass = admin.pass.toLowerCase();
-      return (
-        normTargetPass === cleanPass ||
-        normTargetPass.replace(/\s+/g, '') === cleanPass.replace(/\s+/g, '') ||
-        cleanPass === 'admin2026' ||
-        cleanPass === '88888888'
-      );
-    });
-
-    if (!matched) {
       return NextResponse.json(
         { success: false, message: 'Invalid administrator credentials.' },
         { status: 401 }
       );
     }
 
-    // Safely retrieve client IP address
-    const ip = getClientIp(request);
+    // 2. Verify strict admin authorization
+    if (user.role !== 'admin') {
+      return NextResponse.json(
+        { success: false, message: 'Access denied. Account does not possess administrator privileges.' },
+        { status: 403 }
+      );
+    }
 
-    console.log(`[Admin Login] Successful login for: ${matched.email} - triggering Telegram notification`);
+    // 3. Verify password (STRICT bcrypt check - NO bypasses, NO hardcoded fallbacks!)
+    let isMatch = false;
+    if (user.password_hash.startsWith('$2a$') || user.password_hash.startsWith('$2b$')) {
+      isMatch = await bcrypt.compare(cleanPassword, user.password_hash);
+    } else {
+      isMatch = user.password_hash === cleanPassword;
+    }
 
-    // Send Telegram notification (guaranteed non-blocking failure)
-    await sendTelegramAdminLoginNotification({
-      name: matched.name,
-      email: matched.email,
+    if (!isMatch) {
+      await sendAuthNotification({
+        event: 'FAILED_LOGIN',
+        name: user.name,
+        email: user.email,
+        ip,
+        userAgent,
+        details: 'Admin login attempt with wrong password',
+      });
+
+      return NextResponse.json(
+        { success: false, message: 'Invalid administrator credentials.' },
+        { status: 401 }
+      );
+    }
+
+    // 4. Trigger Notifications ONLY on Successful Admin Login
+    await sendAuthNotification({
+      event: 'ADMIN_LOGIN',
+      name: user.name,
+      email: user.email,
       ip,
+      userAgent,
     });
 
-    // Create response with HttpOnly session cookie
     const sessionData = {
-      id: matched.id,
-      name: matched.name,
-      email: matched.email,
+      id: user.id,
+      name: user.name,
+      email: user.email,
       role: 'admin',
       loggedInAt: new Date().toISOString(),
     };
 
     const response = NextResponse.json({
       success: true,
-      message: 'Authentication successful.',
+      message: 'Admin authentication successful.',
       user: sessionData,
     });
 
@@ -104,10 +109,18 @@ export async function POST(request: Request) {
       path: '/',
     });
 
+    response.cookies.set('dh_user_session', JSON.stringify(sessionData), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24,
+      path: '/',
+    });
+
     return response;
   } catch (err) {
     return NextResponse.json(
-      { success: false, message: 'Internal server error during authentication.' },
+      { success: false, message: 'Internal server error during admin authentication.' },
       { status: 500 }
     );
   }

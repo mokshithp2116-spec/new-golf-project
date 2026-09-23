@@ -44,8 +44,6 @@ export default function AdminLoginPage() {
 
       if (data.user && data.user.id) {
         setCurrentUser(data.user.id);
-      } else {
-        setCurrentUser('admin-1');
       }
 
       router.push('/admin');

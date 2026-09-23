@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { addDonation, getCharities, getCurrentUser } from '@/lib/storage';
+import { useAuth } from '@/context/AuthContext';
+import { addDonation, getCharities } from '@/lib/storage';
 import { Charity } from '@/types';
 import { X, Heart, Check, Sparkles, CreditCard, ShieldCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -17,8 +18,8 @@ export default function DirectDonationModal({
   onClose,
   defaultCharityId,
 }: DirectDonationModalProps) {
+  const { user: currentUser } = useAuth();
   const charities = getCharities();
-  const currentUser = getCurrentUser();
 
   const [charityId, setCharityId] = useState<string>(defaultCharityId || charities[0]?.id || '');
   const [selectedPreset, setSelectedPreset] = useState<number>(50);

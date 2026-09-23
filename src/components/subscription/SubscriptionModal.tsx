@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { getCharities, getCurrentUser, updateUser } from '@/lib/storage';
+import { useAuth } from '@/context/AuthContext';
 import { BillingCycle, Charity, User } from '@/types';
 import { X, Check, Heart, Trophy, ShieldCheck, Sparkles, CreditCard, Lock } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -13,6 +14,7 @@ interface SubscriptionModalProps {
 }
 
 export default function SubscriptionModal({ isOpen, onClose, onSuccess }: SubscriptionModalProps) {
+  const { refreshUser } = useAuth();
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const [charityId, setCharityId] = useState<string>('charity-1');
   const [charityPct, setCharityPct] = useState<number>(15); // Minimum 10%
@@ -32,53 +34,49 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
   const charityAmount = (basePrice * (charityPct / 100)).toFixed(2);
   const prizePoolAmount = (basePrice * 0.5).toFixed(2); // 50% contributes directly to draws
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
 
-    setTimeout(() => {
-      setIsProcessing(false);
-      setCompleted(true);
-
-      const user = getCurrentUser();
-      if (user) {
-        const renewalDate = new Date();
-        if (cycle === 'monthly') {
-          renewalDate.setMonth(renewalDate.getMonth() + 1);
-        } else {
-          renewalDate.setFullYear(renewalDate.getFullYear() + 1);
-        }
-
-        const updated: User = {
-          ...user,
-          role: 'subscriber',
-          subscriptionStatus: 'active',
+    try {
+      const res = await fetch('/api/user/subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           billingCycle: cycle,
-          subscriptionStartDate: new Date().toISOString(),
-          subscriptionRenewalDate: renewalDate.toISOString(),
           charityId,
           charityContributionPct: charityPct,
-        };
-        updateUser(updated);
+          subscriptionStatus: 'active',
+        }),
+      });
+      const resData = await res.json();
+      if (resData.success && resData.user) {
+        updateUser(resData.user);
       }
+      await refreshUser();
+    } catch {
+      // ignore
+    }
 
-      try {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#f97316', '#fbbf24', '#10b981', '#ffffff'],
-        });
-      } catch {
-        // ignore in environments without canvas
-      }
+    setIsProcessing(false);
+    setCompleted(true);
 
-      setTimeout(() => {
-        if (onSuccess) onSuccess();
-        onClose();
-        setCompleted(false);
-      }, 2000);
-    }, 1200);
+    try {
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#f97316', '#fbbf24', '#10b981', '#ffffff'],
+      });
+    } catch {
+      // ignore in environments without canvas
+    }
+
+    setTimeout(() => {
+      if (onSuccess) onSuccess();
+      onClose();
+      setCompleted(false);
+    }, 2000);
   };
 
   return (

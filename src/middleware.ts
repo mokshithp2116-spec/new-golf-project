@@ -3,14 +3,22 @@ import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const userSession = request.cookies.get('dh_user_session')?.value;
+  const adminSession = request.cookies.get('dh_admin_session')?.value;
 
   // Protect /admin routes (except /admin/login)
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
-    const adminSession = request.cookies.get('dh_admin_session');
-
-    // If no admin session cookie, redirect to /admin/login
-    if (!adminSession || !adminSession.value) {
+    if (!adminSession && !userSession) {
       const loginUrl = new URL('/admin/login', request.url);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
+  // Protect /dashboard routes
+  if (pathname.startsWith('/dashboard')) {
+    if (!userSession && !adminSession) {
+      const loginUrl = new URL('/', request.url);
+      loginUrl.searchParams.set('auth', 'login');
       return NextResponse.redirect(loginUrl);
     }
   }
@@ -19,5 +27,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: ['/admin/:path*', '/dashboard/:path*'],
 };

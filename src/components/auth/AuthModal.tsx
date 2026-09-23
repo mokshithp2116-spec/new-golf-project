@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { findUserByCredentials, setCurrentUser, registerUser } from '@/lib/storage';
 import { User } from '@/types';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAuth } from '@/context/AuthContext';
 import {
   X,
   Key,
@@ -31,15 +31,18 @@ export default function AuthModal({
 }: AuthModalProps) {
   const router = useRouter();
   const { t } = useLanguage();
+  const { login, signup } = useAuth();
+
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode === 'signup' ? 'signup' : 'login');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -56,38 +59,26 @@ export default function AuthModal({
       return;
     }
 
-    const found = findUserByCredentials(cleanEmail);
+    setIsSubmitting(true);
+    const result = await login(cleanEmail, cleanPassword);
+    setIsSubmitting(false);
 
-    if (!found) {
-      setError('Invalid account credentials. Please check your email and password.');
+    if (!result.success || !result.user) {
+      setError(result.message || 'Invalid account credentials. Please check your email and password.');
       return;
     }
 
-    const normInputPass = cleanPassword.toLowerCase();
-    const normFoundPass = (found.password || '').toLowerCase();
-
-    const isCorrectPassword =
-      normFoundPass === normInputPass ||
-      normFoundPass.replace(/\s+/g, '') === normInputPass.replace(/\s+/g, '') ||
-      cleanPassword.length >= 8;
-
-    if (!isCorrectPassword) {
-      setError('Invalid account credentials. Please check your email and password.');
-      return;
-    }
-
-    setCurrentUser(found.id);
-    if (onSuccess) onSuccess(found);
+    if (onSuccess) onSuccess(result.user);
     onClose();
 
-    if (found.role === 'admin') {
+    if (result.user.role === 'admin') {
       router.push('/admin');
     } else {
       router.push('/dashboard');
     }
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -100,24 +91,26 @@ export default function AuthModal({
       return;
     }
 
-    if (!cleanEmail) {
-      setError('Please enter your email address.');
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setError('Please enter a valid email address.');
       return;
     }
 
     if (!cleanPassword || cleanPassword.length < 8) {
-      setError('Password must consist of at least 8 digits or characters.');
+      setError('Password must consist of at least 8 characters.');
       return;
     }
 
-    const existing = findUserByCredentials(cleanEmail);
-    if (existing) {
-      setError('An account with this email already exists. Please sign in instead.');
+    setIsSubmitting(true);
+    const result = await signup(cleanName, cleanEmail, cleanPassword);
+    setIsSubmitting(false);
+
+    if (!result.success || !result.user) {
+      setError(result.message || 'An error occurred during account creation.');
       return;
     }
 
-    const newUser = registerUser(cleanName, cleanEmail, cleanPassword, 'monthly', 'charity-1', 15);
-    if (onSuccess) onSuccess(newUser);
+    if (onSuccess) onSuccess(result.user);
     onClose();
 
     if (onNeedSubscribe) {
@@ -228,10 +221,17 @@ export default function AuthModal({
 
             <button
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-500/25 active:scale-[0.99] flex items-center justify-center gap-2"
+              disabled={isSubmitting}
+              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-500/25 active:scale-[0.99] flex items-center justify-center gap-2"
             >
-              <Lock className="w-4 h-4" />
-              {t('sign_in_btn')}
+              {isSubmitting ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Lock className="w-4 h-4" />
+                  {t('sign_in_btn')}
+                </>
+              )}
             </button>
           </form>
         ) : (
@@ -292,10 +292,17 @@ export default function AuthModal({
 
             <button
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-500/25 active:scale-[0.99] flex items-center justify-center gap-2"
+              disabled={isSubmitting}
+              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-500/25 active:scale-[0.99] flex items-center justify-center gap-2"
             >
-              <Sparkles className="w-4 h-4" />
-              {t('create_account_btn')}
+              {isSubmitting ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  {t('create_account_btn')}
+                </>
+              )}
             </button>
           </form>
         )}

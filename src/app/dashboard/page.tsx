@@ -17,6 +17,7 @@ import WinnerProofModal from '@/components/winners/WinnerProofModal';
 import SubscriptionModal from '@/components/subscription/SubscriptionModal';
 import AuthModal from '@/components/auth/AuthModal';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAuth } from '@/context/AuthContext';
 import {
   Trophy,
   Heart,
@@ -38,6 +39,7 @@ import {
 
 export default function DashboardPage() {
   const { t } = useLanguage();
+  const { user: authUser, isLoading, refreshUser } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [charity, setCharity] = useState<Charity | null>(null);
   const [charities, setCharities] = useState<Charity[]>([]);
@@ -56,7 +58,10 @@ export default function DashboardPage() {
   const [selectedCharityId, setSelectedCharityId] = useState('');
 
   const loadData = () => {
-    const currentUser = getCurrentUser();
+    const currentUser = authUser || getCurrentUser();
+    if (authUser) {
+      updateUser(authUser);
+    }
     setUser(currentUser);
     const allCharities = getCharities();
     setCharities(allCharities);
@@ -86,30 +91,79 @@ export default function DashboardPage() {
       window.removeEventListener('dh-storage-update', loadData);
       window.removeEventListener('dh-language-change', loadData);
     };
-  }, []);
+  }, [authUser]);
 
-  const handleSavePledge = () => {
+  const handleSavePledge = async () => {
     if (!user) return;
-    const updated: User = {
-      ...user,
-      charityId: selectedCharityId,
-      charityContributionPct: Math.max(10, pledgePct),
-    };
-    updateUser(updated);
-    setUser(updated);
+    const newPct = Math.max(10, pledgePct);
+    try {
+      const res = await fetch('/api/user/subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscriptionStatus: user.subscriptionStatus,
+          billingCycle: user.billingCycle,
+          charityId: selectedCharityId,
+          charityContributionPct: newPct,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        updateUser(data.user);
+        setUser(data.user);
+        await refreshUser();
+      }
+    } catch {
+      const updated: User = {
+        ...user,
+        charityId: selectedCharityId,
+        charityContributionPct: newPct,
+      };
+      updateUser(updated);
+      setUser(updated);
+    }
     setEditingPledge(false);
   };
 
-  const handleToggleSubscription = () => {
+  const handleToggleSubscription = async () => {
     if (!user) return;
     const nextStatus = user.subscriptionStatus === 'active' ? 'inactive' : 'active';
-    const updated: User = {
-      ...user,
-      subscriptionStatus: nextStatus,
-    };
-    updateUser(updated);
-    setUser(updated);
+    try {
+      const res = await fetch('/api/user/subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscriptionStatus: nextStatus,
+          billingCycle: user.billingCycle,
+          charityId: user.charityId,
+          charityContributionPct: user.charityContributionPct,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        updateUser(data.user);
+        setUser(data.user);
+        await refreshUser();
+      }
+    } catch {
+      const updated: User = {
+        ...user,
+        subscriptionStatus: nextStatus,
+      };
+      updateUser(updated);
+      setUser(updated);
+    }
   };
+
+  // Prevent flash while restoring user session
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-24 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="w-10 h-10 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mb-4" />
+        <p className="text-slate-400 text-sm font-medium">Restoring session...</p>
+      </div>
+    );
+  }
 
   // If user is not signed in, display Golf Information & Prices instead of an empty box!
   if (!user) {

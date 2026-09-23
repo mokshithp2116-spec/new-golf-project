@@ -5,6 +5,7 @@ import Footer from '@/components/layout/Footer';
 import DemoSwitcher from '@/components/common/DemoSwitcher';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { LanguageProvider } from '@/context/LanguageContext';
+import { AuthProvider } from '@/context/AuthContext';
 
 export const metadata: Metadata = {
   title: 'Digital Heroes | Golf Performance & Charity Draw Platform',
@@ -20,14 +21,16 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen flex flex-col bg-[#0b0e14] text-slate-100 antialiased selection:bg-orange-500 selection:text-white">
-        <ThemeProvider>
-          <LanguageProvider>
-            <Navbar />
-            <main className="flex-1">{children}</main>
-            <Footer />
-            <DemoSwitcher />
-          </LanguageProvider>
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <LanguageProvider>
+              <Navbar />
+              <main className="flex-1">{children}</main>
+              <Footer />
+              <DemoSwitcher />
+            </LanguageProvider>
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );

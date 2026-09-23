@@ -61,9 +61,9 @@ export function getUsers(): User[] {
 
 export function getCurrentUser(): User | null {
   const users = getUsers();
-  const currentId = getStoredItem<string | null>(STORAGE_KEYS.CURRENT_USER_ID, 'user-1');
+  const currentId = getStoredItem<string | null>(STORAGE_KEYS.CURRENT_USER_ID, null);
   if (!currentId) return null;
-  return users.find((u) => u.id === currentId) || users[0] || null;
+  return users.find((u) => u.id === currentId) || null;
 }
 
 export function setCurrentUser(userId: string | null): void {
@@ -75,8 +75,10 @@ export function updateUser(updatedUser: User): void {
   const index = users.findIndex((u) => u.id === updatedUser.id);
   if (index !== -1) {
     users[index] = updatedUser;
-    setStoredItem(STORAGE_KEYS.USERS, users);
+  } else {
+    users.push(updatedUser);
   }
+  setStoredItem(STORAGE_KEYS.USERS, users);
 }
 
 export function findUserByCredentials(input: string): User | undefined {
@@ -115,7 +117,6 @@ export function registerUser(
     id: `user-${Date.now()}`,
     name,
     email,
-    password,
     role: 'subscriber',
     subscriptionStatus: 'active',
     billingCycle,

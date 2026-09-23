@@ -1,26 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { getCurrentUser, setCurrentUser } from '@/lib/storage';
-import { User } from '@/types';
 import AuthModal from '@/components/auth/AuthModal';
 import SubscriptionModal from '@/components/subscription/SubscriptionModal';
 import DirectDonationModal from '@/components/charity/DirectDonationModal';
 import { useTheme } from '@/context/ThemeContext';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAuth } from '@/context/AuthContext';
 import { SupportedLanguage } from '@/lib/translations';
 import {
   Sparkles,
   Heart,
   Trophy,
   ShieldCheck,
-  UserCheck,
   LogOut,
   Menu,
   X,
-  ChevronRight,
   Flame,
   Sun,
   Moon,
@@ -31,26 +28,17 @@ export default function Navbar() {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t, languages } = useLanguage();
-  const [user, setUser] = useState<User | null>(null);
+  const { user, logout, isLoading } = useAuth();
+
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [subOpen, setSubOpen] = useState(false);
   const [donationOpen, setDonationOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const reloadUser = () => {
-    setUser(getCurrentUser());
-  };
-
-  useEffect(() => {
-    reloadUser();
-    window.addEventListener('dh-storage-update', reloadUser);
-    return () => window.removeEventListener('dh-storage-update', reloadUser);
-  }, []);
-
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setUser(null);
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = '/';
   };
 
   return (
@@ -178,7 +166,9 @@ export default function Navbar() {
               {t('give_directly')}
             </button>
 
-            {user ? (
+            {isLoading ? (
+              <div className="w-28 h-9 bg-white/5 animate-pulse rounded-xl border border-white/10" />
+            ) : user ? (
               <div className="flex items-center gap-3 pl-2 border-l border-white/10">
                 <Link
                   href="/dashboard"

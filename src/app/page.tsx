@@ -11,7 +11,9 @@ import {
 import { Charity, Draw, PlatformAnalytics, User } from '@/types';
 import SubscriptionModal from '@/components/subscription/SubscriptionModal';
 import DirectDonationModal from '@/components/charity/DirectDonationModal';
+import AuthModal from '@/components/auth/AuthModal';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAuth } from '@/context/AuthContext';
 import {
   Heart,
   Trophy,
@@ -33,6 +35,7 @@ import {
 
 export default function HomePage() {
   const { t } = useLanguage();
+  const { user: authUser } = useAuth();
   const [analytics, setAnalytics] = useState<PlatformAnalytics>(getAnalytics());
   const [charities, setCharities] = useState<Charity[]>([]);
   const [draws, setDraws] = useState<Draw[]>([]);
@@ -40,6 +43,7 @@ export default function HomePage() {
 
   // Modals
   const [subModalOpen, setSubModalOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [donationModalOpen, setDonationModalOpen] = useState(false);
   const [selectedDonationCharityId, setSelectedDonationCharityId] = useState<string | undefined>();
 
@@ -47,17 +51,25 @@ export default function HomePage() {
   const [calcCycle, setCalcCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [calcCharityPct, setCalcCharityPct] = useState<number>(15);
 
+  const isSubscribed = authUser?.subscriptionStatus === 'active';
+
   useEffect(() => {
-    const refresh = () => {
-      setAnalytics(getAnalytics());
-      setCharities(getCharities());
-      setDraws(getDraws());
-      setCurrentUser(getCurrentUser());
-    };
-    refresh();
-    window.addEventListener('dh-storage-update', refresh);
-    return () => window.removeEventListener('dh-storage-update', refresh);
-  }, []);
+    setAnalytics(getAnalytics());
+    setCharities(getCharities());
+    setDraws(getDraws());
+    setCurrentUser(authUser);
+
+    // Smooth anchor scrolling to avoid page jumps on refresh
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hash = window.location.hash.replace('#', '');
+      const element = document.getElementById(hash);
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 150);
+      }
+    }
+  }, [authUser]);
 
   const spotlightCharities = charities.filter((c) => c.isSpotlight);
   const publishedDraw = draws.find((d) => d.status === 'published') || draws[0];
@@ -92,13 +104,27 @@ export default function HomePage() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
-            <button
-              onClick={() => setSubModalOpen(true)}
-              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-2xl text-base transition shadow-xl shadow-orange-500/25 flex items-center justify-center gap-2 group transform hover:-translate-y-0.5"
-            >
-              <span>{t('btn_subscribe_draw')}</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
-            </button>
+            {isSubscribed ? (
+              <Link
+                href="/dashboard"
+                className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 text-white font-bold rounded-2xl text-base transition shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 group transform hover:-translate-y-0.5"
+              >
+                <Trophy className="w-5 h-5 text-amber-300" />
+                <span>View Active Entry & Dashboard</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
+              </Link>
+            ) : (
+              <button
+                onClick={() => {
+                  if (!authUser) setAuthModalOpen(true);
+                  else setSubModalOpen(true);
+                }}
+                className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-2xl text-base transition shadow-xl shadow-orange-500/25 flex items-center justify-center gap-2 group transform hover:-translate-y-0.5"
+              >
+                <span>{t('btn_subscribe_draw')}</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
+              </button>
+            )}
 
             <button
               onClick={() => setDonationModalOpen(true)}
@@ -347,13 +373,27 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <button
-                onClick={() => setSubModalOpen(true)}
-                className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2"
-              >
-                <span>Lock In This Impact & Subscribe</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+              {isSubscribed ? (
+                <Link
+                  href="/dashboard"
+                  className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2"
+                >
+                  <Trophy className="w-4 h-4 text-amber-300" />
+                  <span>Manage Subscription & Pledge in Dashboard</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (!authUser) setAuthModalOpen(true);
+                    else setSubModalOpen(true);
+                  }}
+                  className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2"
+                >
+                  <span>Lock In This Impact & Subscribe</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -494,13 +534,32 @@ export default function HomePage() {
               </div>
             </div>
 
-            <button
-              onClick={() => setSubModalOpen(true)}
-              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
-            >
-              <span>{t('btn_subscribe_draw')}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            {isSubscribed ? (
+              <div className="space-y-2">
+                <Link
+                  href="/dashboard"
+                  className="w-full py-3.5 bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold rounded-xl text-sm transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                >
+                  <Trophy className="w-4 h-4 text-amber-300" />
+                  <span>View Active Entry & Golfer Dashboard</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+                <p className="text-[11px] text-center text-emerald-400 font-semibold">
+                  ✓ Active Subscription! Your latest 5 rounds are qualified for this draw.
+                </p>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  if (!authUser) setAuthModalOpen(true);
+                  else setSubModalOpen(true);
+                }}
+                className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
+              >
+                <span>{t('btn_subscribe_draw')}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -590,12 +649,24 @@ export default function HomePage() {
                       Give Direct
                     </button>
 
-                    <button
-                      onClick={() => setSubModalOpen(true)}
-                      className="py-2 px-3 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 text-xs font-bold transition text-center"
-                    >
-                      Pledge via Golf
-                    </button>
+                    {isSubscribed ? (
+                      <Link
+                        href="/dashboard"
+                        className="py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold transition text-center flex items-center justify-center gap-1"
+                      >
+                        Manage Pledge
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          if (!authUser) setAuthModalOpen(true);
+                          else setSubModalOpen(true);
+                        }}
+                        className="py-2 px-3 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 text-xs font-bold transition text-center"
+                      >
+                        Pledge via Golf
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -653,12 +724,24 @@ export default function HomePage() {
               </ul>
             </div>
 
-            <button
-              onClick={() => setSubModalOpen(true)}
-              className="w-full py-3.5 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition"
-            >
-              Choose Monthly Plan
-            </button>
+            {isSubscribed ? (
+              <Link
+                href="/dashboard"
+                className="w-full py-3.5 rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-center font-bold text-sm transition block"
+              >
+                Active Member (Manage in Dashboard)
+              </Link>
+            ) : (
+              <button
+                onClick={() => {
+                  if (!authUser) setAuthModalOpen(true);
+                  else setSubModalOpen(true);
+                }}
+                className="w-full py-3.5 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition"
+              >
+                Choose Monthly Plan
+              </button>
+            )}
           </div>
 
           {/* Annual Card */}
@@ -701,17 +784,36 @@ export default function HomePage() {
               </ul>
             </div>
 
-            <button
-              onClick={() => setSubModalOpen(true)}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-extrabold text-sm transition shadow-lg shadow-orange-500/25"
-            >
-              Get Annual Access ($190)
-            </button>
+            {isSubscribed ? (
+              <Link
+                href="/dashboard"
+                className="w-full py-3.5 rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-center font-bold text-sm transition block"
+              >
+                Active Member (Manage in Dashboard)
+              </Link>
+            ) : (
+              <button
+                onClick={() => {
+                  if (!authUser) setAuthModalOpen(true);
+                  else setSubModalOpen(true);
+                }}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-extrabold text-sm transition shadow-lg shadow-orange-500/25"
+              >
+                Get Annual Access ($190)
+              </button>
+            )}
           </div>
         </div>
       </section>
 
       {/* Modals */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialMode="login"
+        onNeedSubscribe={() => setSubModalOpen(true)}
+      />
+
       <SubscriptionModal
         isOpen={subModalOpen}
         onClose={() => setSubModalOpen(false)}

@@ -48,19 +48,23 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
 
   const activeUserId = userId || getCurrentUser()?.id || '';
 
-  const loadScores = () => {
-    if (!activeUserId) return;
-    const userScores = getUserGolfScores(activeUserId);
-    setScores(userScores);
+  const loadScores = async () => {
+    try {
+      const res = await fetch('/api/scores', { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success && data.scores) {
+        setScores(data.scores);
+      }
+    } catch {
+      // fallback
+    }
   };
 
   useEffect(() => {
     loadScores();
-    window.addEventListener('dh-storage-update', loadScores);
-    return () => window.removeEventListener('dh-storage-update', loadScores);
-  }, [activeUserId]);
+  }, []);
 
-  const handleAddScore = (e: React.FormEvent) => {
+  const handleAddScore = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
@@ -76,25 +80,38 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
       return;
     }
 
-    const res = addGolfScore(activeUserId, scoreNum, newDate, courseName, notes);
-    if (!res.success) {
-      setError(res.error || 'Failed to add score.');
-      return;
+    try {
+      const res = await fetch('/api/scores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          score: scoreNum,
+          date: newDate,
+          courseName,
+          notes,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.message || 'Failed to add score.');
+        return;
+      }
+
+      setNewScore('');
+      setCourseName('');
+      setNotes('');
+      setSuccess(
+        scores.length >= 5
+          ? `Round added! As required by § 05, the oldest stored score was automatically rolled off.`
+          : `Round added successfully! (${scores.length + 1}/5 scores recorded)`
+      );
+
+      await loadScores();
+      if (onScoresChanged) onScoresChanged();
+      setTimeout(() => setSuccess(null), 5000);
+    } catch {
+      setError('Failed to add score due to network error.');
     }
-
-    setNewScore('');
-    setCourseName('');
-    setNotes('');
-    setSuccess(
-      scores.length >= 5
-        ? `Round added! As required by § 05, the oldest stored score was automatically rolled off.`
-        : `Round added successfully! (${scores.length + 1}/5 scores recorded)`
-    );
-
-    loadScores();
-    if (onScoresChanged) onScoresChanged();
-
-    setTimeout(() => setSuccess(null), 5000);
   };
 
   const handleStartEdit = (sc: GolfScore) => {
@@ -106,7 +123,7 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
     setError(null);
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingScoreId) return;
 
@@ -116,24 +133,48 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
       return;
     }
 
-    const res = updateGolfScore(editingScoreId, scoreNum, editDateVal, editCourseVal, editNotesVal);
-    if (!res.success) {
-      setError(res.error || 'Update failed.');
-      return;
-    }
+    try {
+      const res = await fetch('/api/scores', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scoreId: editingScoreId,
+          score: scoreNum,
+          date: editDateVal,
+          courseName: editCourseVal,
+          notes: editNotesVal,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.message || 'Update failed.');
+        return;
+      }
 
-    setEditingScoreId(null);
-    setSuccess('Round updated successfully.');
-    loadScores();
-    if (onScoresChanged) onScoresChanged();
-    setTimeout(() => setSuccess(null), 3500);
+      setEditingScoreId(null);
+      setSuccess('Round updated successfully.');
+      await loadScores();
+      if (onScoresChanged) onScoresChanged();
+      setTimeout(() => setSuccess(null), 3500);
+    } catch {
+      setError('Failed to update score.');
+    }
   };
 
-  const handleDelete = (scoreId: string) => {
+  const handleDelete = async (scoreId: string) => {
     if (confirm('Are you sure you want to delete this score entry?')) {
-      deleteGolfScore(scoreId);
-      loadScores();
-      if (onScoresChanged) onScoresChanged();
+      try {
+        const res = await fetch(`/api/scores?id=${scoreId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          await loadScores();
+          if (onScoresChanged) onScoresChanged();
+        } else {
+          setError(data.message || 'Failed to delete score.');
+        }
+      } catch {
+        setError('Network error deleting score.');
+      }
     }
   };
 

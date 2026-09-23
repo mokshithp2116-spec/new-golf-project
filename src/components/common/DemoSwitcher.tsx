@@ -6,6 +6,8 @@ import { User } from '@/types';
 import { ShieldCheck, UserCheck, Eye, RefreshCw, ChevronUp, ChevronDown, Check } from 'lucide-react';
 
 export default function DemoSwitcher() {
+  if (process.env.NODE_ENV === 'production') return null;
+
   const [currentUser, setCurrentUserState] = useState<User | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [isOpen, setIsOpen] = useState(false);

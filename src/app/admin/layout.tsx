@@ -34,13 +34,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (pathname === '/admin/login') return;
-    const cur = getCurrentUser();
-    if (cur && cur.role === 'admin') {
-      setAdminUser(cur);
-    } else {
-      setAdminUser({ name: 'System Administrator', role: 'admin', email: 'admin@digitalheroes.com' });
-    }
-  }, [pathname]);
+    const fetchAdminSession = async () => {
+      try {
+        const res = await fetch('/api/admin/session', { cache: 'no-store' });
+        const data = await res.json();
+        if (data.authenticated && data.user && data.user.role === 'admin') {
+          setAdminUser(data.user);
+        } else {
+          router.push('/admin/login');
+        }
+      } catch {
+        router.push('/admin/login');
+      }
+    };
+    fetchAdminSession();
+  }, [pathname, router]);
 
   // If on /admin/login, render without admin layout shell
   if (pathname === '/admin/login') {
