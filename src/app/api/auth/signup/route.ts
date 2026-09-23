@@ -12,10 +12,36 @@ function getClientIp(request: Request): string {
   return request.headers.get('x-real-ip') || 'Unknown';
 }
 
+async function safeParseJson(request: Request): Promise<any> {
+  let rawText = '';
+  try {
+    rawText = await request.text();
+  } catch {
+    return null;
+  }
+  if (!rawText || !rawText.trim()) return {};
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    try {
+      return JSON.parse(rawText.replace(/\\/g, '\\\\'));
+    } catch {
+      return null;
+    }
+  }
+}
+
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { name, email, password, billingCycle, charityId, charityContributionPct } = body;
+    const body = await safeParseJson(request);
+    if (body === null) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid request payload. Please check your details and try again.' },
+        { status: 400 }
+      );
+    }
+
+    const { name, email, password, billingCycle, charityId, charityContributionPct } = body || {};
 
     const cleanName = (name || '').trim();
     const cleanEmail = (email || '').trim().toLowerCase();
@@ -46,7 +72,13 @@ export async function POST(request: Request) {
     }
 
     // 2. Duplicate email check in Database
-    const existingUser = dbGetUserByEmail(cleanEmail);
+    let existingUser: any = null;
+    try {
+      existingUser = dbGetUserByEmail(cleanEmail);
+    } catch {
+      // ignore
+    }
+
     if (existingUser) {
       return NextResponse.json(
         {
@@ -62,14 +94,28 @@ export async function POST(request: Request) {
     const passwordHash = await bcrypt.hash(cleanPassword, salt);
 
     // 4. Create User Record in Database
-    const newUser = dbCreateUser(
-      cleanName,
-      cleanEmail,
-      passwordHash,
-      billingCycle || 'monthly',
-      charityId || 'charity-1',
-      charityContributionPct || 15
-    );
+    let newUser: any;
+    try {
+      newUser = dbCreateUser(
+        cleanName,
+        cleanEmail,
+        passwordHash,
+        billingCycle || 'monthly',
+        charityId || 'charity-1',
+        charityContributionPct || 15
+      );
+    } catch (err: any) {
+      if (err?.message?.includes('UNIQUE') || err?.code === 'SQLITE_CONSTRAINT') {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'An account with this email address already exists. Please sign in instead.',
+          },
+          { status: 409 }
+        );
+      }
+      throw err;
+    }
 
     // 5. Trigger Unified Notifications (Telegram & Resend Email)
     await sendAuthNotification({
@@ -104,3 +150,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

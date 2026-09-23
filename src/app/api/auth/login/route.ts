@@ -12,10 +12,35 @@ function getClientIp(request: Request): string {
   return request.headers.get('x-real-ip') || 'Unknown';
 }
 
+async function safeParseJson(request: Request): Promise<any> {
+  let rawText = '';
+  try {
+    rawText = await request.text();
+  } catch {
+    return null;
+  }
+  if (!rawText || !rawText.trim()) return {};
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    try {
+      return JSON.parse(rawText.replace(/\\/g, '\\\\'));
+    } catch {
+      return null;
+    }
+  }
+}
+
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { email, password } = body;
+    const body = await safeParseJson(request);
+    if (body === null) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid request payload. Please check your details and try again.' },
+        { status: 400 }
+      );
+    }
+    const { email, password } = body || {};
 
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanPassword = (password || '').trim();
