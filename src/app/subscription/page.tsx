@@ -117,16 +117,16 @@ export default function SubscriptionPage() {
 
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/10 text-xs">
           <span className="text-slate-400">
-            Current Billing Cadence: <strong className="text-white capitalize">{cycle}</strong>
+            Current Billing Cadence: <strong className="text-white capitalize">{cycle === 'yearly' ? '1 Year (Annual)' : '1 Month (Monthly)'}</strong>
           </span>
 
           <button
             onClick={handleToggleCycle}
             disabled={isUpdating}
-            className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 font-bold transition flex items-center gap-2"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold transition shadow-md shadow-orange-500/20 flex items-center gap-2"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isUpdating ? 'animate-spin' : ''}`} />
-            <span>Switch to {cycle === 'monthly' ? 'Yearly (Save 17%)' : 'Monthly'} Cadence</span>
+            <span>{cycle === 'yearly' ? 'Switch Plan to 1 Month ($19/mo)' : 'Switch Plan to 1 Year (Save 17%)'}</span>
           </button>
         </div>
       </div>

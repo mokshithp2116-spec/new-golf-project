@@ -65,41 +65,49 @@ export async function POST(request: Request) {
     // 2. Database User Lookup
     const user = dbGetUserByEmail(cleanEmail);
     if (!user) {
-      await sendAuthNotification({
-        event: 'FAILED_LOGIN',
-        name: 'Unknown User',
-        email: cleanEmail,
-        ip,
-        userAgent,
-        details: 'Non-existent account email',
-      });
+      try {
+        await sendAuthNotification({
+          event: 'FAILED_LOGIN',
+          name: 'Unknown User',
+          email: cleanEmail,
+          ip,
+          userAgent,
+          details: 'Non-existent account email',
+        });
+      } catch {}
 
       return NextResponse.json(
-        { success: false, message: 'Invalid credentials. Please check your email and password.' },
-        { status: 401 }
+        { success: false, message: 'No account found with this email. Please click "Create Account" above to register.' },
+        { status: 404 }
       );
     }
 
-    // 3. Strict Password Verification (STRICT: NO BYPASS LOGIC)
+    // 3. Strict Password Verification
     let isMatch = false;
-    if (user.password_hash.startsWith('$2a$') || user.password_hash.startsWith('$2b$')) {
-      isMatch = await bcrypt.compare(cleanPassword, user.password_hash);
-    } else {
+    try {
+      if (user.password_hash.startsWith('$2a$') || user.password_hash.startsWith('$2b$')) {
+        isMatch = await bcrypt.compare(cleanPassword, user.password_hash);
+      } else {
+        isMatch = user.password_hash === cleanPassword;
+      }
+    } catch {
       isMatch = user.password_hash === cleanPassword;
     }
 
     if (!isMatch) {
-      await sendAuthNotification({
-        event: 'FAILED_LOGIN',
-        name: user.name,
-        email: user.email,
-        ip,
-        userAgent,
-        details: 'Incorrect password',
-      });
+      try {
+        await sendAuthNotification({
+          event: 'FAILED_LOGIN',
+          name: user.name,
+          email: user.email,
+          ip,
+          userAgent,
+          details: 'Incorrect password',
+        });
+      } catch {}
 
       return NextResponse.json(
-        { success: false, message: 'Invalid credentials. Please check your email and password.' },
+        { success: false, message: 'Invalid password. Please check your password and try again.' },
         { status: 401 }
       );
     }
@@ -111,15 +119,17 @@ export async function POST(request: Request) {
     } catch {}
 
     // 5. Trigger Notifications ONLY on Successful Login
-    await sendAuthNotification({
-      event: 'LOGIN',
-      name: user.name,
-      email: user.email,
-      ip,
-      userAgent,
-    });
+    try {
+      await sendAuthNotification({
+        event: 'LOGIN',
+        name: user.name,
+        email: user.email,
+        ip,
+        userAgent,
+      });
+    } catch {}
 
-    // 5. Create Session Token & Cookie
+    // 6. Create Session Token & Cookie
     const token = await signSessionToken({
       id: user.id,
       name: user.name,
@@ -154,7 +164,7 @@ export async function POST(request: Request) {
   } catch (err: any) {
     console.error('[Login API Error]:', err);
     return NextResponse.json(
-      { success: false, message: 'An unexpected error occurred during login.' },
+      { success: false, message: err?.message || 'Login system busy. Please try again.' },
       { status: 500 }
     );
   }
