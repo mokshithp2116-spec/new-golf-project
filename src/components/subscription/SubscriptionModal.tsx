@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getCharities, updateUser } from '@/lib/storage';
+import { getCharities, updateUser, setCurrentUser } from '@/lib/storage';
 import { useAuth } from '@/context/AuthContext';
 import { BillingCycle, Charity } from '@/types';
 import { X, Check, Heart, Trophy, ShieldCheck, Sparkles, CreditCard, Lock, ArrowRight, AlertCircle } from 'lucide-react';
@@ -32,6 +32,8 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess, initialC
   const [selectedCycle, setSelectedCycle] = useState<BillingCycle>(initialCycle || 'monthly');
   const [charityId, setCharityId] = useState<string>(user?.charityId || 'charity-1');
   const [charityPct, setCharityPct] = useState<number>(user?.charityContributionPct || 15);
+  const [emailInput, setEmailInput] = useState(user?.email || 'mokshithp1234@gmail.com');
+  const [nameInput, setNameInput] = useState(user?.name || 'Mokshithp1234');
   const [cardNumber, setCardNumber] = useState('4242 •••• •••• 4242');
   const [expiry, setExpiry] = useState('12/28');
   const [cvc, setCvc] = useState('888');
@@ -41,6 +43,13 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess, initialC
 
   const charities = getCharities();
   const selectedCharity = charities.find((c) => c.id === charityId) || charities[0];
+
+  useEffect(() => {
+    if (user) {
+      if (user.email) setEmailInput(user.email);
+      if (user.name) setNameInput(user.name);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (initialCycle) {
@@ -89,12 +98,16 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess, initialC
     setErrorMessage(null);
 
     try {
+      const targetEmail = user?.email || emailInput || 'mokshithp1234@gmail.com';
+      const targetName = user?.name || nameInput || 'Mokshithp1234';
+
       const res = await fetch('/api/user/subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user?.id,
-          email: user?.email,
+          email: targetEmail,
+          name: targetName,
           billingCycle: activeCycle,
           charityId,
           charityContributionPct: charityPct,
@@ -110,6 +123,7 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess, initialC
       }
 
       if (resData.user) {
+        setCurrentUser(resData.user.id);
         updateUser(resData.user);
       }
       await refreshUser();
@@ -309,6 +323,32 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess, initialC
             {/* PAYMENT DETAILS (Only shown for fresh plan purchase or fallback) */}
             {!user || user.subscriptionStatus !== 'active' ? (
               <div className="space-y-3">
+                {!user && (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold text-slate-300 font-serif">
+                      Golfer Account & Email Details
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={nameInput}
+                        onChange={(e) => setNameInput(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-[#070A12] border border-white/15 rounded-xl text-xs text-white"
+                        placeholder="Full Name"
+                        required
+                      />
+                      <input
+                        type="email"
+                        value={emailInput}
+                        onChange={(e) => setEmailInput(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-[#070A12] border border-white/15 rounded-xl text-xs text-white"
+                        placeholder="Email address"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between text-xs text-slate-300 font-semibold">
                   <span className="flex items-center gap-1.5 font-serif">
                     <CreditCard className="w-3.5 h-3.5 text-[#D4AF37]" />
