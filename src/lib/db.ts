@@ -5,28 +5,67 @@ import fs from 'fs';
 import { User, GolfScore, Charity, Draw, Winner } from '@/types';
 import { INITIAL_CHARITIES } from './mockData';
 
-let dbInstance: Database.Database | null = null;
-let isInitialized = false;
+import os from 'os';
+
+declare global {
+  var _sqliteDbInstance: Database.Database | null | undefined;
+  var _sqliteIsInitialized: boolean | undefined;
+}
 
 export function getDb(): Database.Database {
-  if (!dbInstance) {
-    const dataDir = path.join(process.cwd(), 'data');
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
+  if (globalThis._sqliteDbInstance) {
+    return globalThis._sqliteDbInstance;
+  }
+
+  const possiblePaths = [
+    path.join(process.cwd(), 'data', 'digitalheroes.db'),
+    path.join(process.cwd(), 'digitalheroes.db'),
+    path.join(os.tmpdir(), 'digitalheroes.db'),
+  ];
+
+  let db: Database.Database | null = null;
+
+  for (const dbPath of possiblePaths) {
+    try {
+      const dir = path.dirname(dbPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      db = new Database(dbPath, { timeout: 10000 });
+      try {
+        db.pragma('journal_mode = WAL');
+      } catch {
+        try {
+          db.pragma('journal_mode = DELETE');
+        } catch {}
+      }
+      try {
+        db.pragma('busy_timeout = 10000');
+      } catch {}
+      break;
+    } catch (err) {
+      console.warn(`[DB Connection Warning] Could not open database at ${dbPath}:`, err);
     }
-
-    const dbPath = path.join(dataDir, 'digitalheroes.db');
-    dbInstance = new Database(dbPath, { timeout: 10000 });
-    dbInstance.pragma('journal_mode = WAL');
-    dbInstance.pragma('busy_timeout = 10000');
   }
 
-  if (!isInitialized) {
-    initDb(dbInstance);
-    isInitialized = true;
+  if (!db) {
+    console.warn('[DB Fallback] Initializing in-memory SQLite database');
+    db = new Database(':memory:');
   }
 
-  return dbInstance;
+  globalThis._sqliteDbInstance = db;
+
+  if (!globalThis._sqliteIsInitialized) {
+    try {
+      initDb(db);
+    } catch (err) {
+      console.error('[DB Init Error]:', err);
+    }
+    globalThis._sqliteIsInitialized = true;
+  }
+
+  return db;
 }
 
 function initDb(db: Database.Database) {
