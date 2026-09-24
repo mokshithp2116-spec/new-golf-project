@@ -2,30 +2,28 @@
 
 @layer base {
   :root, html.dark {
-    --bg-primary: #0b0e14;
-    --bg-secondary: #121824;
-    --bg-card: rgba(22, 29, 44, 0.7);
-    --border-subtle: rgba(255, 255, 255, 0.08);
-    --accent-terracotta: #e0633b;
-    --accent-terracotta-hover: #c9512a;
+    --bg-primary: #050c09;
+    --bg-secondary: #0a1914;
+    --bg-card: rgba(12, 31, 24, 0.75);
+    --border-subtle: rgba(52, 211, 153, 0.15);
+    --accent-emerald: #10b981;
     --accent-gold: #f59e0b;
-    --accent-sage: #34d399;
+    --accent-terracotta: #f97316;
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
     --text-muted: #64748b;
   }
 
   html.light {
-    --bg-primary: #f8fafc;
+    --bg-primary: #f4f7f5;
     --bg-secondary: #ffffff;
     --bg-card: #ffffff;
-    --border-subtle: #e2e8f0;
-    --accent-terracotta: #ea580c;
-    --accent-terracotta-hover: #c2410c;
+    --border-subtle: #cbd5e1;
+    --accent-emerald: #059669;
     --accent-gold: #d97706;
-    --accent-sage: #059669;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
+    --accent-terracotta: #ea580c;
+    --text-primary: #061812;
+    --text-secondary: #334155;
     --text-muted: #64748b;
   }
 
@@ -39,49 +37,35 @@
   }
 }
 
-html.light body {
-  background-color: #f8fafc !important;
-  color: #0f172a !important;
+/* Premium Golf Atmosphere Background */
+.bg-golf-atmosphere {
+  background: 
+    radial-gradient(circle at 15% 15%, rgba(16, 185, 129, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 85% 25%, rgba(245, 158, 11, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 50% 85%, rgba(5, 150, 105, 0.1) 0%, transparent 50%),
+    #050c09;
 }
 
-html.light .glass-panel {
-  background: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05) !important;
-  color: #0f172a !important;
+/* Glassmorphism Luxury Panel */
+.glass-panel {
+  background: rgba(10, 25, 20, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(52, 211, 153, 0.15);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-html.light .glass-panel-hover:hover {
-  background: #f1f5f9 !important;
-  border-color: #ea580c !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
-}
-
-html.light .text-slate-100,
-html.light .text-slate-200,
-html.light .text-white {
-  color: #0f172a !important;
-}
-
-html.light .text-slate-300,
-html.light .text-slate-400 {
-  color: #334155 !important;
-}
-
-html.light .text-slate-500 {
-  color: #64748b !important;
-}
-
-html.light .bg-\[\#0b0e14\],
-html.light .bg-\[\#121824\],
-html.light .bg-\[\#111622\],
-html.light .bg-\[\#141a29\] {
-  background-color: #ffffff !important;
+.glass-panel-hover:hover {
+  background: rgba(14, 36, 29, 0.85);
+  border-color: rgba(52, 211, 153, 0.35);
+  box-shadow: 0 12px 40px 0 rgba(16, 185, 129, 0.15);
+  transform: translateY(-2px);
 }
 
 /* Gradient accents */
 .text-gradient-hero {
-  background: linear-gradient(135deg, #ffffff 30%, #e0633b 70%, #f59e0b 100%);
+  background: linear-gradient(135deg, #ffffff 30%, #34d399 70%, #f59e0b 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -106,33 +90,48 @@ html.light .bg-\[\#141a29\] {
   width: 2.75rem;
   height: 2.75rem;
   border-radius: 9999px;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 1.125rem;
   color: #ffffff;
-  background: radial-gradient(circle at 35% 35%, #2a3447, #131926);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.15), 0 4px 10px rgba(0, 0, 0, 0.4);
+  background: radial-gradient(circle at 35% 35%, #1e3a2e, #091a13);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.15), 0 4px 10px rgba(0, 0, 0, 0.5);
 }
 
 .ball-winning {
-  background: radial-gradient(circle at 35% 35%, #f97316, #b43403);
-  border-color: #fdba74;
-  box-shadow: 0 0 16px rgba(249, 115, 22, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  background: radial-gradient(circle at 35% 35%, #f59e0b, #b45309);
+  border-color: #fef08a;
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  color: #050c09;
 }
 
 .ball-matched {
-  background: radial-gradient(circle at 35% 35%, #10b981, #065f46);
+  background: radial-gradient(circle at 35% 35%, #10b981, #064e3b);
   border-color: #6ee7b7;
-  box-shadow: 0 0 16px rgba(16, 185, 129, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+}
+
+/* 5-Score Round Progress Indicators */
+.round-indicator-active {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: 2px solid #6ee7b7;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
+
+.round-indicator-pending {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  color: #64748b;
 }
 
 /* Pulse animation for live draw alerts */
 @keyframes pulseGlow {
   0%, 100% {
-    box-shadow: 0 0 15px rgba(224, 99, 59, 0.2);
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
   }
   50% {
-    box-shadow: 0 0 30px rgba(224, 99, 59, 0.5);
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.5);
   }
 }
 

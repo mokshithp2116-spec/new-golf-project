@@ -6,11 +6,18 @@ import DemoSwitcher from '@/components/common/DemoSwitcher';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { AuthProvider } from '@/context/AuthContext';
+import { ToastProvider } from '@/components/common/Toast';
 
 export const metadata: Metadata = {
   title: 'Digital Heroes | Golf Performance & Charity Draw Platform',
   description:
     'A subscription-driven web platform combining Stableford golf score tracking, charity fundraising, and transparent monthly draw-based prize pools.',
+  manifest: '/manifest.json',
+  openGraph: {
+    title: 'Digital Heroes | Golf & Charity Platform',
+    description: 'Log rolling golf scores, enter monthly jackpot draws, and support verified charities.',
+    type: 'website',
+  },
 };
 
 export default function RootLayout({
@@ -24,10 +31,12 @@ export default function RootLayout({
         <AuthProvider>
           <ThemeProvider>
             <LanguageProvider>
-              <Navbar />
-              <main className="flex-1">{children}</main>
-              <Footer />
-              <DemoSwitcher />
+              <ToastProvider>
+                <Navbar />
+                <main className="flex-1 focus:outline-none" id="main-content">{children}</main>
+                <Footer />
+                <DemoSwitcher />
+              </ToastProvider>
             </LanguageProvider>
           </ThemeProvider>
         </AuthProvider>

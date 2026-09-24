@@ -16,6 +16,8 @@ import ScoreManager from '@/components/scores/ScoreManager';
 import WinnerProofModal from '@/components/winners/WinnerProofModal';
 import SubscriptionModal from '@/components/subscription/SubscriptionModal';
 import AuthModal from '@/components/auth/AuthModal';
+import { ScoreChart } from '@/components/common/Chart';
+import DrawCountdown from '@/components/common/Countdown';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -35,6 +37,12 @@ import {
   DollarSign,
   Users,
   LogIn,
+  Check,
+  Plus,
+  Compass,
+  Award,
+  Circle,
+  RefreshCw,
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -69,7 +77,7 @@ export default function DashboardPage() {
     if (currentUser) {
       const c = getCharityById(currentUser.charityId || 'charity-1');
       setCharity(c || allCharities[0] || null);
-      setPledgePct(currentUser.charityContributionPct || 10);
+      setPledgePct(currentUser.charityContributionPct || 15);
       setSelectedCharityId(currentUser.charityId || allCharities[0]?.id || '');
 
       const userScores = getUserGolfScores(currentUser.id);
@@ -125,137 +133,48 @@ export default function DashboardPage() {
     setEditingPledge(false);
   };
 
-  const handleToggleSubscription = async () => {
-    if (!user) return;
-    const nextStatus = user.subscriptionStatus === 'active' ? 'inactive' : 'active';
-    try {
-      const res = await fetch('/api/user/subscription', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subscriptionStatus: nextStatus,
-          billingCycle: user.billingCycle,
-          charityId: user.charityId,
-          charityContributionPct: user.charityContributionPct,
-        }),
-      });
-      const data = await res.json();
-      if (data.success && data.user) {
-        updateUser(data.user);
-        setUser(data.user);
-        await refreshUser();
-      }
-    } catch {
-      const updated: User = {
-        ...user,
-        subscriptionStatus: nextStatus,
-      };
-      updateUser(updated);
-      setUser(updated);
-    }
-  };
-
-  // Prevent flash while restoring user session
+  // Session restore loading state
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-24 flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mb-4" />
-        <p className="text-slate-400 text-sm font-medium">Restoring session...</p>
+      <div className="max-w-7xl mx-auto px-4 py-24 flex flex-col items-center justify-center min-h-[65vh]">
+        <div className="w-12 h-12 border-4 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin mb-4" />
+        <p className="text-slate-400 text-xs font-semibold tracking-wider uppercase">Loading Golf Command Center...</p>
       </div>
     );
   }
 
-  // If user is not signed in, display Golf Information & Prices instead of an empty box!
+  // Unauthenticated Welcome State
   if (!user) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-12 space-y-12">
-        {/* Header Preview */}
-        <div className="glass-panel p-8 sm:p-12 rounded-3xl border border-white/10 text-center space-y-6 relative overflow-hidden">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 text-white flex items-center justify-center mx-auto shadow-xl shadow-orange-500/20">
-            <Target className="w-8 h-8" />
+      <div className="max-w-6xl mx-auto px-4 py-12 space-y-12 bg-golf-atmosphere min-h-screen">
+        <div className="glass-panel p-8 sm:p-12 rounded-3xl border border-emerald-500/20 text-center space-y-6 relative overflow-hidden">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-amber-500 text-slate-950 flex items-center justify-center mx-auto shadow-2xl shadow-emerald-500/20 font-black text-2xl">
+            §
           </div>
 
-          <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
-            {t('dashboard_unauth_title')}
-          </h2>
+          <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight">
+            Digital Heroes Golfer Command Center
+          </h1>
 
-          <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
-            {t('dashboard_unauth_desc')}
+          <p className="text-xs sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
+            Log your rolling 5 Stableford golf scores, enter monthly championship jackpot draws, and automatically support verified youth sports charities.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
             <button
               onClick={() => setAuthModalOpen(true)}
-              className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black rounded-xl text-xs transition shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2"
             >
               <LogIn className="w-4 h-4" />
-              <span>{t('sign_in')}</span>
+              <span>Sign In to Account</span>
             </button>
 
             <button
               onClick={() => setSubModalOpen(true)}
-              className="w-full sm:w-auto px-8 py-3.5 bg-white/10 hover:bg-white/15 border border-white/15 text-white font-bold rounded-xl text-sm transition flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-8 py-3.5 bg-white/10 hover:bg-white/15 border border-white/15 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2"
             >
               <Sparkles className="w-4 h-4 text-amber-400" />
-              <span>{t('btn_subscribe_draw')}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Feature & Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="glass-panel p-6 rounded-2xl border border-white/10 space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center font-bold">
-              01
-            </div>
-            <h3 className="text-lg font-bold text-white">{t('logic_stableford')}</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              {t('step2_desc')}
-            </p>
-          </div>
-
-          <div className="glass-panel p-6 rounded-2xl border border-white/10 space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold">
-              02
-            </div>
-            <h3 className="text-lg font-bold text-white">{t('pledge_min')}</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              {t('step1_desc')}
-            </p>
-          </div>
-
-          <div className="glass-panel p-6 rounded-2xl border border-white/10 space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
-              03
-            </div>
-            <h3 className="text-lg font-bold text-white">{t('jackpot_guarantee')}</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              {t('step3_desc')}
-            </p>
-          </div>
-        </div>
-
-        {/* Pricing Tiers Preview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-          <div className="glass-panel p-6 rounded-2xl border border-white/10 space-y-4">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('monthly_membership')}</span>
-            <div className="text-3xl font-extrabold text-white">$19 <span className="text-xs text-slate-400 font-normal">{t('per_month')}</span></div>
-            <button
-              onClick={() => setSubModalOpen(true)}
-              className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition"
-            >
-              {t('choose_monthly')}
-            </button>
-          </div>
-
-          <div className="glass-panel p-6 rounded-2xl border border-amber-500/40 space-y-4">
-            <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">{t('annual_membership')}</span>
-            <div className="text-3xl font-extrabold text-white">$190 <span className="text-xs text-slate-400 font-normal">{t('per_year')}</span></div>
-            <button
-              onClick={() => setSubModalOpen(true)}
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-bold text-xs transition"
-            >
-              {t('choose_annual')}
+              <span>Subscribe & Start Playing</span>
             </button>
           </div>
         </div>
@@ -281,390 +200,304 @@ export default function DashboardPage() {
   const totalWon = userWinners.reduce((sum, w) => sum + w.prizeAmount, 0);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/10">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-              {t('dashboard_welcome', { name: user.name })}
-            </h1>
-            <span
-              className={`px-2.5 py-0.5 rounded-full text-xs font-bold capitalize ${
-                user.subscriptionStatus === 'active'
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-              }`}
-            >
-              {user.subscriptionStatus} {t('active')}
-            </span>
-          </div>
-          <div className="text-xs text-slate-400 mt-1 flex items-center gap-3">
-            <span>{user.homeClub || 'St. Andrews Old Course'}</span>
-            <span>·</span>
-            <span>Handicap: {user.handicap || 14.5}</span>
-            <span>·</span>
-            <span>{user.email}</span>
-          </div>
-        </div>
+    <div className="min-h-screen bg-golf-atmosphere py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        
+        {/* 1. PREMIUM DASHBOARD HEADER / HERO BANNER (Item #4) */}
+        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-emerald-500/25 relative overflow-hidden bg-gradient-to-r from-[#0c241b]/90 via-[#0a1b14]/90 to-[#07130e]/90">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Action buttons */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setSubModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-400 text-xs font-bold transition flex items-center gap-1.5"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            {t('pricing')}
-          </button>
-        </div>
-      </div>
+          <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold uppercase tracking-wider">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                VERIFIED GOLFER MEMBER
+              </div>
 
-      {/* Restricted Access Warning */}
-      {isRestricted && (
-        <div className="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
-            <div>
-              <strong className="text-white text-sm block">
-                Subscription {user.subscriptionStatus.toUpperCase()}
-              </strong>
-              Your membership has lapsed or is inactive. Your scores are currently excluded from upcoming monthly prize draws until reactivated.
+              <div className="space-y-1">
+                <span className="text-xs text-slate-400 font-extrabold uppercase tracking-widest block">WELCOME BACK</span>
+                <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
+                  {user.name.toUpperCase()}
+                </h1>
+              </div>
+
+              <div className="flex items-center gap-3 text-xs text-slate-300 font-semibold flex-wrap">
+                <span className="flex items-center gap-1.5 text-emerald-400">
+                  <Compass className="w-4 h-4" /> {user.homeClub || 'Royal Melbourne Golf Club'}
+                </span>
+                <span>·</span>
+                <span className="text-amber-300 font-mono">Handicap: {user.handicap || 14.5}</span>
+                <span>·</span>
+                <span className="text-slate-400">{user.email}</span>
+              </div>
             </div>
-          </div>
-          <button
-            onClick={handleToggleSubscription}
-            className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl text-xs transition shadow-md whitespace-nowrap"
-          >
-            Reactivate Membership Now
-          </button>
-        </div>
-      )}
 
-      {/* Top 4 KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Module 1: Subscription Status */}
-        <div className="glass-panel p-5 rounded-2xl space-y-2">
-          <div className="flex justify-between items-center text-xs text-slate-400 font-semibold">
-            <span>Subscription Status</span>
-            <Sparkles className="w-4 h-4 text-orange-400" />
-          </div>
-          <div className="text-xl font-bold text-white capitalize flex items-center gap-2">
-            {user.subscriptionStatus}
-            <span className="text-xs font-normal text-slate-400">({user.billingCycle})</span>
-          </div>
-          <div className="text-[11px] text-slate-400">
-            Renews: {user.subscriptionRenewalDate ? user.subscriptionRenewalDate.split('T')[0] : 'Auto-renews next month'}
-          </div>
-        </div>
-
-        {/* Module 2: Charity Pledge */}
-        <div className="glass-panel p-5 rounded-2xl space-y-2">
-          <div className="flex justify-between items-center text-xs text-slate-400 font-semibold">
-            <span>{t('charities_impact')}</span>
-            <Heart className="w-4 h-4 text-rose-400" />
-          </div>
-          <div className="text-xl font-bold text-emerald-400">
-            {user.charityContributionPct}% of fee
-          </div>
-          <div className="text-[11px] text-slate-300 truncate font-medium">
-            Recipient: {charity?.name || 'Fairway for Kids'}
-          </div>
-        </div>
-
-        {/* Module 3: Active Rolling Scores */}
-        <div className="glass-panel p-5 rounded-2xl space-y-2">
-          <div className="flex justify-between items-center text-xs text-slate-400 font-semibold">
-            <span>{t('logic_stableford')}</span>
-            <Calendar className="w-4 h-4 text-amber-400" />
-          </div>
-          <div className="text-xl font-bold text-white">
-            {scores.length}/5 Rounds Logged
-          </div>
-          <div className="text-[11px] text-slate-400">
-            {scores.length === 5 ? 'Fully entered in next draw' : `${5 - scores.length} more needed to qualify`}
-          </div>
-        </div>
-
-        {/* Module 4: Winnings Overview */}
-        <div className="glass-panel p-5 rounded-2xl space-y-2">
-          <div className="flex justify-between items-center text-xs text-slate-400 font-semibold">
-            <span>Total Prize Winnings</span>
-            <Trophy className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="text-xl font-bold text-gradient-gold">
-            ${totalWon.toLocaleString()}
-          </div>
-          <div className="text-[11px] text-emerald-400 font-medium">
-            {userWinners.length} Winning Tier Matches
-          </div>
-        </div>
-      </div>
-
-      {/* WINNINGS & VERIFICATION OVERVIEW */}
-      {userWinners.length > 0 && (
-        <div className="glass-panel p-6 sm:p-8 rounded-3xl space-y-5 border border-emerald-500/30 bg-emerald-950/10">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <span className="text-[11px] font-bold tracking-widest text-emerald-400 uppercase flex items-center gap-1.5">
-                <Trophy className="w-4 h-4 text-emerald-400" /> Winner Verification & Payout Center
-              </span>
-              <h3 className="text-xl font-bold text-white mt-1">Your Draw Rewards</h3>
-            </div>
-            <span className="text-xs text-slate-400">
-              Scorecard proof is reviewed by admins before payment release
-            </span>
-          </div>
-
-          <div className="space-y-3">
-            {userWinners.map((win) => (
-              <div
-                key={win.id}
-                className="p-4 rounded-2xl bg-slate-900/90 border border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4"
+            <div className="flex items-center gap-3 self-start lg:self-center">
+              <button
+                onClick={() => setSubModalOpen(true)}
+                className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black rounded-2xl text-xs transition shadow-xl shadow-emerald-500/20 flex items-center gap-2"
               >
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-bold text-white">{win.drawName}</span>
-                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-extrabold uppercase">
-                      {win.matchType.replace('_', ' ')}
-                    </span>
-                  </div>
-
-                  <div className="text-xs text-slate-300 flex items-center gap-3 flex-wrap">
-                    <span>
-                      Prize Amount: <strong className="text-emerald-400 font-bold">${win.prizeAmount.toLocaleString()}</strong>
-                    </span>
-                    <span>·</span>
-                    <span>
-                      Matched Numbers: <strong className="text-white font-mono">[{win.matchedNumbers?.join(', ') || ''}]</strong>
-                    </span>
-                  </div>
-
-                  {win.adminNotes && (
-                    <div className="text-[11px] text-slate-400 italic">
-                      Admin Notes: “{win.adminNotes}”
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3 self-end md:self-auto">
-                  <div className="text-right">
-                    <div className="text-[10px] text-slate-400">Verification:</div>
-                    <span
-                      className={`text-xs font-bold capitalize px-2 py-0.5 rounded-lg inline-block ${
-                        win.verificationStatus === 'approved'
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                          : win.verificationStatus === 'rejected'
-                          ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                          : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                      }`}
-                    >
-                      {win.verificationStatus === 'approved' ? 'Verified' : win.verificationStatus}
-                    </span>
-                  </div>
-
-                  <div className="text-right">
-                    <div className="text-[10px] text-slate-400">Payment:</div>
-                    <span
-                      className={`text-xs font-bold capitalize px-2 py-0.5 rounded-lg inline-block ${
-                        win.paymentStatus === 'paid'
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                      }`}
-                    >
-                      {win.paymentStatus}
-                    </span>
-                  </div>
-
-                  {win.paymentStatus !== 'paid' && (
-                    <button
-                      onClick={() => setSelectedWinnerForProof(win)}
-                      className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl text-xs transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
-                    >
-                      <Upload className="w-3.5 h-3.5" />
-                      {win.proofImageUrl ? 'Update Proof' : 'Upload Score Proof'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+                <Sparkles className="w-4 h-4" />
+                <span>Manage Plan Tier</span>
+              </button>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* PARTICIPATION SUMMARY */}
-      <div className="glass-panel p-6 sm:p-8 rounded-3xl space-y-6 border border-white/10">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <span className="text-xs font-bold tracking-widest text-orange-400 uppercase">
-              {t('draw_section_tag')}
-            </span>
-            <h3 className="text-xl font-bold text-white mt-0.5">{upcomingDraw?.name}</h3>
-            <div className="text-xs text-slate-400">
-              Draw Date: {upcomingDraw?.drawDate.split('T')[0]} · Cadence: Monthly
+        {/* 2. DASHBOARD STATISTICS SYSTEM (4 MAIN KPI MODULES) (Item #7) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Module 1: Membership Status */}
+          <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
+            <div className="flex justify-between items-center text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+              <span>MEMBERSHIP</span>
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div className="text-2xl font-black text-emerald-400 uppercase flex items-center gap-2">
+              {user.subscriptionStatus}
+            </div>
+            <div className="text-[11px] text-slate-400 font-medium">
+              Renews: {user.subscriptionRenewalDate ? user.subscriptionRenewalDate.split('T')[0] : 'Oct 23, 2026'}
             </div>
           </div>
 
-          <div className="px-3.5 py-1.5 rounded-2xl bg-orange-500/15 border border-orange-500/30 text-orange-300 text-xs font-bold flex items-center gap-2">
-            <Flame className="w-4 h-4 text-orange-400" />
-            Estimated Jackpot: ${upcomingDraw?.jackpotPool.toLocaleString()}
+          {/* Module 2: Charity Impact */}
+          <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
+            <div className="flex justify-between items-center text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+              <span>CHARITY IMPACT</span>
+              <Heart className="w-4 h-4 text-rose-400 fill-rose-400" />
+            </div>
+            <div className="text-2xl font-black text-white">
+              {user.charityContributionPct || 15}% OF FEE
+            </div>
+            <div className="text-[11px] text-rose-300 font-semibold truncate">
+              {charity?.name || 'Fairway for Kids'}
+            </div>
+          </div>
+
+          {/* Module 3: Golf Qualification */}
+          <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
+            <div className="flex justify-between items-center text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+              <span>GOLF QUALIFICATION</span>
+              <Target className="w-4 h-4 text-amber-400" />
+            </div>
+            <div className="text-2xl font-black text-amber-400 font-mono">
+              {scores.length} / 5
+            </div>
+            <div className="text-[11px] text-slate-400 font-medium">
+              {scores.length === 5 ? '5/5 Full Entry Ready' : `${5 - scores.length} More Rounds Logged`}
+            </div>
+          </div>
+
+          {/* Module 4: Prize Winnings */}
+          <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
+            <div className="flex justify-between items-center text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+              <span>PRIZE WINNINGS</span>
+              <Trophy className="w-4 h-4 text-amber-400" />
+            </div>
+            <div className="text-2xl font-black text-gradient-gold">
+              ${totalWon.toLocaleString()}
+            </div>
+            <div className="text-[11px] text-amber-300 font-medium">
+              {userWinners.length} Winning Tier Matches
+            </div>
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900/80 border border-white/10 space-y-3">
-          <div className="flex justify-between items-center text-xs">
-            <span className="font-semibold text-slate-300">
-              Your Official Active Ticket Numbers for this Draw:
-            </span>
-            <span className="text-slate-400">Derived from your latest 5 rounds</span>
+        {/* 3. NEXT DRAW & CHAMPIONSHIP PRIZE POOL SECTION (Item #8 & #9) */}
+        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-amber-500/30 bg-gradient-to-b from-[#14231b] to-[#0a1510] space-y-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-white/10 pb-6">
+            <div className="space-y-2">
+              <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+                <Flame className="w-4 h-4 text-amber-400 animate-pulse" /> CURRENT CHAMPIONSHIP DRAW
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{upcomingDraw?.name}</h2>
+              <p className="text-xs text-slate-400">
+                Draw Date: <strong className="text-white">{upcomingDraw?.drawDate.split('T')[0]}</strong> · Mode: <strong className="text-emerald-400 capitalize">{upcomingDraw?.drawLogic || 'Algorithmic'}</strong>
+              </p>
+            </div>
+
+            {/* Countdown Component */}
+            <DrawCountdown targetDate={upcomingDraw?.drawDate || '2026-09-30T20:00:00Z'} />
           </div>
 
-          {scores.length === 5 ? (
-            <div className="flex items-center gap-3 flex-wrap">
-              {scores.map((s) => (
-                <div key={s.id} className="flex flex-col items-center gap-1">
-                  <div className="ball-number ball-matched">{s.score}</div>
-                  <span className="text-[10px] text-slate-400">{s.date.slice(5)}</span>
-                </div>
-              ))}
-              <div className="ml-4 pl-4 border-l border-white/10 text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4" />
-                Valid 5-Number Entry Active!
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-5 rounded-2xl bg-black/50 border border-amber-500/20 space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">ESTIMATED GRAND JACKPOT</span>
+              <div className="text-4xl font-black text-gradient-gold">${upcomingDraw?.jackpotPool.toLocaleString()}</div>
+              <div className="text-[11px] text-amber-400 font-semibold flex items-center gap-1">
+                <Flame className="w-3.5 h-3.5 text-amber-400" /> Includes ${upcomingDraw?.rolloverFromPrevious.toLocaleString()} Rollover
               </div>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-black/50 border border-white/10 space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">TIER 4 (4-MATCH POOL)</span>
+              <div className="text-2xl font-extrabold text-emerald-400">${upcomingDraw?.tier4Pool.toLocaleString()}</div>
+              <div className="text-[11px] text-slate-400">Split among 4-match scorecards</div>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-black/50 border border-white/10 space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">TIER 3 (3-MATCH POOL)</span>
+              <div className="text-2xl font-extrabold text-emerald-400">${upcomingDraw?.tier3Pool.toLocaleString()}</div>
+              <div className="text-[11px] text-slate-400">Split among 3-match scorecards</div>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. QUALIFICATION / 5-SCORE PROGRESSION TRACKER (Item #10) */}
+        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+            <div>
+              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">CORE QUALIFICATION SYSTEM</span>
+              <h3 className="text-xl font-black text-white mt-1">5-Round Stableford Qualification Progression</h3>
+            </div>
+
+            <Link
+              href="/scores"
+              className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black rounded-xl text-xs transition shadow-lg shadow-emerald-500/20 flex items-center gap-2 self-start sm:self-auto"
+            >
+              <span>LOG YOUR NEXT ROUND →</span>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+            {[0, 1, 2, 3, 4].map((idx) => {
+              const score = scores[idx];
+              const isFilled = !!score;
+              return (
+                <div
+                  key={idx}
+                  className={`p-4 rounded-2xl border text-center space-y-2 transition ${
+                    isFilled
+                      ? 'bg-emerald-950/40 border-emerald-500/40'
+                      : 'bg-slate-950/40 border-white/10'
+                  }`}
+                >
+                  <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase">
+                    <span>ROUND {idx + 1}</span>
+                    {isFilled ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    ) : (
+                      <Circle className="w-4 h-4 text-slate-600" />
+                    )}
+                  </div>
+
+                  <div className={`w-12 h-12 rounded-2xl mx-auto flex items-center justify-center font-black text-lg ${
+                    isFilled ? 'ball-matched text-white' : 'bg-slate-900 border border-white/10 text-slate-600'
+                  }`}>
+                    {isFilled ? score.score : '—'}
+                  </div>
+
+                  <div className="text-[10px] font-mono text-slate-400 truncate">
+                    {isFilled ? `${score.date.slice(5)} · ${score.courseName || 'Local'}` : 'Pending Entry'}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 5. SCORE PROGRESSION CHART (Item #12 & #30) */}
+        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10">
+          <ScoreChart scores={scores} />
+        </div>
+
+        {/* 6. SCORE MANAGER CRUD SECTION */}
+        <div className="space-y-4">
+          <ScoreManager userId={user.id} onScoresChanged={loadData} />
+        </div>
+
+        {/* 7. CHARITY & MY IMPACT SECTION (Item #13 & #14) */}
+        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-rose-500/30 space-y-6 bg-gradient-to-b from-[#1f121d] to-[#0a0f18]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+            <div>
+              <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-1.5">
+                <Heart className="w-4 h-4 fill-rose-400 text-rose-400" /> YOUR PHILANTHROPIC PLEDGE
+              </span>
+              <h3 className="text-xl font-black text-white mt-1">Your Selected Cause & Pledge</h3>
+            </div>
+
+            <button
+              onClick={() => setEditingPledge(!editingPledge)}
+              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-bold transition flex items-center gap-1.5 self-start sm:self-auto"
+            >
+              <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+              {editingPledge ? 'Cancel Adjustments' : 'Adjust Charity or Pledge %'}
+            </button>
+          </div>
+
+          {editingPledge ? (
+            <div className="p-5 rounded-2xl bg-slate-950 border border-white/15 space-y-5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Change Charity Recipient
+                </label>
+                <select
+                  value={selectedCharityId}
+                  onChange={(e) => setSelectedCharityId(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-900 border border-white/15 rounded-xl text-xs text-white"
+                >
+                  {charities.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.category})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-slate-300">Pledge Percentage:</span>
+                  <span className="text-rose-400 font-bold">{pledgePct}% of subscription</span>
+                </div>
+                <input
+                  type="range"
+                  min="10"
+                  max="50"
+                  step="5"
+                  value={pledgePct}
+                  onChange={(e) => setPledgePct(Number(e.target.value))}
+                  className="w-full accent-rose-500 cursor-pointer"
+                />
+              </div>
+
+              <button
+                onClick={handleSavePledge}
+                className="px-5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl text-xs transition shadow-md shadow-rose-500/20"
+              >
+                Save New Charity Settings
+              </button>
             </div>
           ) : (
-            <div className="text-xs text-amber-400 p-3 bg-amber-500/10 rounded-xl border border-amber-500/20 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>
-                You currently have {scores.length} of 5 scores recorded. Log {5 - scores.length} more round(s) below to complete your ticket entry.
-              </span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+              <div className="md:col-span-2 flex items-center gap-4">
+                {charity?.imageUrl && (
+                  <img
+                    src={charity.imageUrl}
+                    alt={charity.name}
+                    className="w-16 h-16 rounded-2xl object-cover border border-white/10 shrink-0"
+                  />
+                )}
+                <div>
+                  <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">
+                    {charity?.category}
+                  </span>
+                  <h4 className="text-lg font-bold text-white">{charity?.name}</h4>
+                  <p className="text-xs text-slate-400 line-clamp-1">{charity?.tagline}</p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-black/40 border border-white/10 text-center">
+                <div className="text-[10px] text-slate-400 uppercase font-semibold">Current Contribution</div>
+                <div className="text-2xl font-black text-emerald-400 mt-0.5">
+                  {user.charityContributionPct || 15}%
+                </div>
+                <div className="text-[10px] text-slate-400 mt-0.5">of your membership fee</div>
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* SCORE ENTRY & MANAGEMENT SYSTEM */}
-      <div className="space-y-4">
-        <div>
-          <span className="text-xs font-bold tracking-widest text-orange-400 uppercase">
-            {t('logic_stableford')}
-          </span>
-          <h2 className="text-2xl font-bold text-white mt-1">Your 5 Rolling Stableford Scores</h2>
-          <p className="text-xs text-slate-400">
-            Log each golf round with date and Stableford points (1–45). Only 1 round per date is permitted. A new round will automatically replace the oldest stored round.
-          </p>
-        </div>
-
-        <ScoreManager userId={user.id} onScoresChanged={loadData} />
-      </div>
-
-      {/* SELECTED CHARITY & PLEDGE PERCENTAGE */}
-      <div className="glass-panel p-6 sm:p-8 rounded-3xl space-y-6 border border-white/10">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <span className="text-xs font-bold tracking-widest text-rose-400 uppercase">
-              {t('charities_impact')}
-            </span>
-            <h3 className="text-xl font-bold text-white mt-0.5">Your Selected Cause & Pledge</h3>
-          </div>
-
-          <button
-            onClick={() => setEditingPledge(!editingPledge)}
-            className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 text-xs font-semibold transition flex items-center gap-1.5 self-start sm:self-auto"
-          >
-            <Edit3 className="w-3.5 h-3.5" />
-            {editingPledge ? 'Cancel Adjustments' : 'Adjust Charity or Pledge %'}
-          </button>
-        </div>
-
-        {editingPledge ? (
-          <div className="p-5 rounded-2xl bg-slate-900 border border-white/15 space-y-5">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Change Charity Recipient
-              </label>
-              <select
-                value={selectedCharityId}
-                onChange={(e) => setSelectedCharityId(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-950 border border-white/15 rounded-xl text-xs text-white"
-              >
-                {charities.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.category})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-semibold">
-                <span className="text-slate-300">Pledge Percentage:</span>
-                <span className="text-orange-400 font-bold">{pledgePct}% of subscription</span>
-              </div>
-              <input
-                type="range"
-                min="10"
-                max="50"
-                step="5"
-                value={pledgePct}
-                onChange={(e) => setPledgePct(Number(e.target.value))}
-                className="w-full accent-orange-500 cursor-pointer"
-              />
-              <div className="flex justify-between text-[10px] text-slate-400">
-                <span>10% (PRD Baseline)</span>
-                <span>25%</span>
-                <span>50%</span>
-              </div>
-            </div>
-
-            <button
-              onClick={handleSavePledge}
-              className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-xs transition shadow-md shadow-orange-500/20"
-            >
-              Save New Charity Settings
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-            <div className="md:col-span-2 flex items-center gap-4">
-              {charity?.imageUrl && (
-                <img
-                  src={charity.imageUrl}
-                  alt={charity.name}
-                  className="w-16 h-16 rounded-2xl object-cover border border-white/10 shrink-0"
-                />
-              )}
-              <div>
-                <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">
-                  {charity?.category}
-                </span>
-                <h4 className="text-lg font-bold text-white">{charity?.name}</h4>
-                <p className="text-xs text-slate-400 line-clamp-1">{charity?.tagline}</p>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-center">
-              <div className="text-[10px] text-slate-400 uppercase font-semibold">Current Contribution</div>
-              <div className="text-2xl font-extrabold text-emerald-400 mt-0.5">
-                {user.charityContributionPct}%
-              </div>
-              <div className="text-[10px] text-slate-400 mt-0.5">of your membership fee</div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Proof Upload Modal */}
-      {selectedWinnerForProof && (
-        <WinnerProofModal
-          winner={selectedWinnerForProof}
-          isOpen={!!selectedWinnerForProof}
-          onClose={() => setSelectedWinnerForProof(null)}
-          onSuccess={loadData}
-        />
-      )}
-
-      {/* Subscription Modal */}
       <SubscriptionModal
         isOpen={subModalOpen}
         onClose={() => setSubModalOpen(false)}

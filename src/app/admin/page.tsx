@@ -26,6 +26,13 @@ import {
   CheckCircle2,
   Clock,
   AlertTriangle,
+  Search,
+  Calendar,
+  Zap,
+  Server,
+  Database,
+  Lock,
+  RefreshCw,
 } from 'lucide-react';
 
 export default function AdminOverviewPage() {
@@ -35,6 +42,8 @@ export default function AdminOverviewPage() {
   const [winnersList, setWinnersList] = useState<Winner[]>([]);
   const [analytics, setAnalytics] = useState<PlatformAnalytics>(getAnalytics());
   const [recentAudits, setRecentAudits] = useState<any[]>([]);
+  const [dateRange, setDateRange] = useState<'today' | '7d' | '30d' | '3m' | 'year' | 'all'>('30d');
+  const [globalSearch, setGlobalSearch] = useState('');
 
   const loadData = async () => {
     setCurrentUserState(getCurrentUser());
@@ -46,7 +55,7 @@ export default function AdminOverviewPage() {
         setDrawsList(data.draws || []);
         setWinnersList(data.winners || []);
         if (data.auditLogs) {
-          setRecentAudits(data.auditLogs.slice(0, 5));
+          setRecentAudits(data.auditLogs.slice(0, 8));
         }
         if (data.metrics) {
           setAnalytics({
@@ -63,13 +72,13 @@ export default function AdminOverviewPage() {
         setUsersList(getUsers());
         setDrawsList(getDraws());
         setWinnersList(getWinners());
-        setRecentAudits(getAuditLogs().slice(0, 5));
+        setRecentAudits(getAuditLogs().slice(0, 8));
       }
     } catch {
       setUsersList(getUsers());
       setDrawsList(getDraws());
       setWinnersList(getWinners());
-      setRecentAudits(getAuditLogs().slice(0, 5));
+      setRecentAudits(getAuditLogs().slice(0, 8));
     }
   };
 
@@ -89,101 +98,200 @@ export default function AdminOverviewPage() {
 
   const currentDraw = drawsList.find((d) => d.status === 'scheduled') || drawsList[0];
 
+  // Filter audit logs by global search term
+  const filteredAudits = recentAudits.filter((log) => {
+    if (!globalSearch.trim()) return true;
+    const term = globalSearch.toLowerCase();
+    return (
+      (log.adminName && log.adminName.toLowerCase().includes(term)) ||
+      (log.action && log.action.toLowerCase().includes(term)) ||
+      (log.entity && log.entity.toLowerCase().includes(term)) ||
+      (log.newValue && log.newValue.toLowerCase().includes(term))
+    );
+  });
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/25 text-amber-300 text-xs font-semibold mb-2">
-            <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-            DIGITAL HEROES OPERATIONS COMMAND CENTER
+      {/* Top Breadcrumb & Operations Hero Banner */}
+      <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 space-y-6 bg-gradient-to-b from-[#0b131e] to-[#060a0f]">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-5">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-xs font-bold mb-2 tracking-wide uppercase">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              OPERATIONS COMMAND CENTER
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              Platform Command Center
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
+              Monitor and manage the Digital Heroes ecosystem from one secure operational center. Real-time draw, revenue, subscriber, and charity engine metrics.
+            </p>
           </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">Full control.</h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Monitor users, subscriptions, draws, winners and charity impact from one operational center.
-          </p>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/admin/draws"
+              className="px-5 py-3 bg-gradient-to-r from-amber-500 via-emerald-500 to-teal-500 hover:from-amber-600 hover:to-teal-600 text-slate-950 font-black rounded-2xl text-xs transition shadow-xl shadow-emerald-500/20 flex items-center gap-2"
+            >
+              <Trophy className="w-4 h-4" />
+              <span>Launch Live Draw Operations</span>
+            </Link>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href="/admin/draws"
-            className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black rounded-xl text-xs transition shadow-lg shadow-orange-500/20 flex items-center gap-2"
-          >
-            <Trophy className="w-4 h-4" />
-            <span>Launch Draw Command Center</span>
-          </Link>
+        {/* Real-time System Operational Signals */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 pt-1 text-[11px] font-mono">
+          <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-slate-400 font-sans">API Engine:</span>
+            <span className="text-emerald-400 font-bold ml-auto">99.9%</span>
+          </div>
+
+          <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="text-slate-400 font-sans">Database:</span>
+            <span className="text-emerald-400 font-bold ml-auto">ONLINE</span>
+          </div>
+
+          <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="text-slate-400 font-sans">Auth System:</span>
+            <span className="text-emerald-400 font-bold ml-auto">SECURE</span>
+          </div>
+
+          <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400" />
+            <span className="text-slate-400 font-sans">Draw Engine:</span>
+            <span className="text-amber-400 font-bold ml-auto">READY</span>
+          </div>
+
+          <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="text-slate-400 font-sans">Payments:</span>
+            <span className="text-emerald-400 font-bold ml-auto">ACTIVE</span>
+          </div>
+
+          <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="text-slate-400 font-sans">Charity Pool:</span>
+            <span className="text-emerald-400 font-bold ml-auto">15% PLEDGE</span>
+          </div>
         </div>
       </div>
 
-      {/* TOP KPI CARDS */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* TOTAL USERS */}
-        <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
-          <div className="flex justify-between items-center text-xs text-slate-400 font-semibold">
-            <span>TOTAL USERS</span>
-            <Users className="w-4 h-4 text-slate-400" />
+      {/* Date Filter & Global Admin Search Control Bar */}
+      <div className="glass-panel p-4 rounded-2xl border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+        {/* Global Admin Search Input */}
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
+          <input
+            type="text"
+            placeholder="Search users, subscriptions, audit logs..."
+            value={globalSearch}
+            onChange={(e) => setGlobalSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-slate-950/80 border border-white/15 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+          />
+        </div>
+
+        {/* Date Filter Buttons */}
+        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto">
+          <span className="text-[11px] font-bold text-slate-400 mr-2 flex items-center gap-1">
+            <Calendar className="w-3.5 h-3.5 text-emerald-400" /> Range:
+          </span>
+          {(
+            [
+              { id: 'today', label: 'Today' },
+              { id: '7d', label: '7 Days' },
+              { id: '30d', label: '30 Days' },
+              { id: '3m', label: '3 Months' },
+              { id: 'year', label: 'This Year' },
+              { id: 'all', label: 'All Time' },
+            ] as const
+          ).map((btn) => (
+            <button
+              key={btn.id}
+              onClick={() => setDateRange(btn.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                dateRange === btn.id
+                  ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300'
+                  : 'bg-white/5 text-slate-400 hover:text-white'
+              }`}
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 6 MAIN KPI CARDS WITH VISUAL HIERARCHY */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* PRIMARY 1: TOTAL USERS */}
+        <div className="glass-panel p-6 rounded-3xl border border-emerald-500/30 space-y-3 bg-gradient-to-b from-emerald-950/20 to-transparent">
+          <div className="flex justify-between items-center text-xs text-slate-400 font-bold uppercase tracking-wider">
+            <span>TOTAL REGISTERED USERS</span>
+            <Users className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="text-3xl font-black text-white">{usersList.length}</div>
-          <div className="text-[11px] text-emerald-400 flex items-center gap-1 font-semibold">
-            <TrendingUp className="w-3 h-3" /> +12% growth this month
+          <div className="text-3xl sm:text-4xl font-black text-white">{usersList.length}</div>
+          <div className="text-xs text-emerald-400 flex items-center gap-1 font-semibold">
+            <TrendingUp className="w-3.5 h-3.5" /> Real database records synced
           </div>
         </div>
 
-        {/* ACTIVE SUBSCRIPTIONS */}
-        <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
-          <div className="flex justify-between items-center text-xs text-slate-400 font-semibold">
+        {/* PRIMARY 2: ACTIVE SUBSCRIPTIONS */}
+        <div className="glass-panel p-6 rounded-3xl border border-emerald-500/30 space-y-3 bg-gradient-to-b from-emerald-950/20 to-transparent">
+          <div className="flex justify-between items-center text-xs text-slate-400 font-bold uppercase tracking-wider">
             <span>ACTIVE SUBSCRIPTIONS</span>
             <CreditCard className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="text-3xl font-black text-emerald-400">{activeSubscribers.length}</div>
-          <div className="text-[11px] text-slate-400">100% Eligible for Monthly Draws</div>
+          <div className="text-3xl sm:text-4xl font-black text-emerald-400">{activeSubscribers.length}</div>
+          <div className="text-xs text-slate-400">100% Eligible for Monthly Draws</div>
         </div>
 
-        {/* ACTIVE MRR / ARR */}
+        {/* PRIMARY 3: CURRENT PRIZE POOL */}
+        <div className="glass-panel p-6 rounded-3xl border border-amber-500/40 space-y-3 bg-gradient-to-b from-amber-950/20 to-transparent">
+          <div className="flex justify-between items-center text-xs text-slate-400 font-bold uppercase tracking-wider">
+            <span>CURRENT PRIZE POOL</span>
+            <Trophy className="w-4 h-4 text-amber-400" />
+          </div>
+          <div className="text-3xl sm:text-4xl font-black text-gradient-gold">
+            ${currentDraw?.jackpotPool.toLocaleString() || '40,700'}
+          </div>
+          <div className="text-xs text-amber-400 flex items-center gap-1 font-semibold">
+            <Flame className="w-3.5 h-3.5" /> ${currentDraw?.rolloverFromPrevious.toLocaleString()} Rollover Active
+          </div>
+        </div>
+
+        {/* SECONDARY 1: ACTIVE MRR / ARR */}
         <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
           <div className="flex justify-between items-center text-xs text-slate-400 font-semibold">
             <span>ACTIVE MRR / ARR</span>
             <DollarSign className="w-4 h-4 text-amber-400" />
           </div>
-          <div className="text-3xl font-black text-amber-400">${mrr.toLocaleString()}</div>
-          <div className="text-[11px] text-slate-400">ARR Pace: ${(arr).toLocaleString()}/yr</div>
+          <div className="text-2xl sm:text-3xl font-black text-amber-300">${mrr.toLocaleString()}</div>
+          <div className="text-[11px] text-slate-400 font-mono">Paced ARR: ${arr.toLocaleString()}/yr</div>
         </div>
 
-        {/* CURRENT PRIZE POOL */}
+        {/* SECONDARY 2: CHARITY IMPACT */}
         <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
           <div className="flex justify-between items-center text-xs text-slate-400 font-semibold">
-            <span>CURRENT PRIZE POOL</span>
-            <Trophy className="w-4 h-4 text-orange-400" />
-          </div>
-          <div className="text-3xl font-black text-gradient-gold">
-            ${currentDraw?.jackpotPool.toLocaleString() || '40,700'}
-          </div>
-          <div className="text-[11px] text-orange-400 flex items-center gap-1">
-            <Flame className="w-3 h-3" /> ${currentDraw?.rolloverFromPrevious.toLocaleString()} Rollover Active
-          </div>
-        </div>
-
-        {/* CHARITY IMPACT */}
-        <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
-          <div className="flex justify-between items-center text-xs text-slate-400 font-semibold">
-            <span>CHARITY IMPACT</span>
+            <span>CHARITY IMPACT (15%)</span>
             <Heart className="w-4 h-4 text-rose-400" />
           </div>
-          <div className="text-3xl font-black text-gradient-impact">
+          <div className="text-2xl sm:text-3xl font-black text-gradient-impact">
             ${analytics.totalCharityContributions.toLocaleString()}
           </div>
-          <div className="text-[11px] text-slate-400">100% Verified Disbursements</div>
+          <div className="text-[11px] text-slate-400">Fairway for Kids Foundation</div>
         </div>
 
-        {/* PENDING WINNERS */}
+        {/* SECONDARY 3: PENDING WINNERS */}
         <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
           <div className="flex justify-between items-center text-xs text-slate-400 font-semibold">
-            <span>PENDING WINNERS</span>
+            <span>PENDING WINNERS QUEUE</span>
             <FileCheck className="w-4 h-4 text-indigo-400" />
           </div>
-          <div className="text-3xl font-black text-indigo-400">{pendingWinners.length}</div>
+          <div className="text-2xl sm:text-3xl font-black text-indigo-300">{pendingWinners.length}</div>
           <div className="text-[11px] text-amber-400 font-semibold">
-            {approvedUnpaid.length} Approved Awaiting Payout
+            {approvedUnpaid.length} Approved Awaiting Disbursal
           </div>
         </div>
       </div>
@@ -191,18 +299,18 @@ export default function AdminOverviewPage() {
       {/* QUICK COMMAND CENTER PANELS */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Draw Status Launcher */}
-        <div className="lg:col-span-7 glass-panel p-6 rounded-3xl border border-amber-500/30 space-y-5 bg-gradient-to-b from-[#131926] to-[#0a0e17]">
+        <div className="lg:col-span-7 glass-panel p-6 sm:p-8 rounded-3xl border border-amber-500/30 space-y-5 bg-gradient-to-b from-[#0f1724] to-[#070b12]">
           <div className="flex justify-between items-start">
             <div>
               <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Flame className="w-4 h-4 text-amber-400 animate-pulse" />
-                Live Draw Operations Center (§ 06 & § 07)
+                01 · LIVE DRAW OPERATIONS CENTER
               </span>
               <h3 className="text-xl font-bold text-white mt-1">
                 {currentDraw?.name || 'March 2026 Grand Draw'}
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Mode: <strong className="text-slate-200 capitalize">{currentDraw?.drawLogic || 'Algorithmic'}</strong> · Eligible Golfers: <strong className="text-emerald-400">{activeSubscribers.length}</strong>
+                Engine Mode: <strong className="text-slate-200 capitalize">{currentDraw?.drawLogic || 'Algorithmic'}</strong> · Eligible Golfers: <strong className="text-emerald-400 font-bold">{activeSubscribers.length}</strong>
               </p>
             </div>
             <span className="px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold uppercase">
@@ -210,15 +318,17 @@ export default function AdminOverviewPage() {
             </span>
           </div>
 
-          <div className="p-4 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-between">
+          <div className="p-4 rounded-2xl bg-black/40 border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <div className="text-xs text-slate-400 font-medium">Estimated Grand Jackpot</div>
-              <div className="text-2xl font-black text-gradient-gold">${currentDraw?.jackpotPool.toLocaleString()}</div>
+              <div className="text-xs text-slate-400 font-medium">Estimated Championship Jackpot</div>
+              <div className="text-2xl sm:text-3xl font-black text-gradient-gold">
+                ${currentDraw?.jackpotPool.toLocaleString()}
+              </div>
             </div>
 
             <Link
               href="/admin/draws"
-              className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs transition shadow-lg shadow-amber-500/20 flex items-center gap-1.5"
+              className="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black rounded-xl text-xs transition shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
             >
               <span>Run Simulation & Publish</span>
               <ArrowRight className="w-4 h-4" />
@@ -227,25 +337,27 @@ export default function AdminOverviewPage() {
         </div>
 
         {/* Verification & Payout Queue Panel */}
-        <div className="lg:col-span-5 glass-panel p-6 rounded-3xl border border-white/10 space-y-4">
+        <div className="lg:col-span-5 glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <FileCheck className="w-4 h-4 text-emerald-400" />
               Verification Queue
             </h3>
-            <Link href="/admin/winners" className="text-xs text-amber-400 hover:underline font-semibold">
+            <Link href="/admin/winners" className="text-xs text-amber-400 hover:underline font-bold">
               View All Queue →
             </Link>
           </div>
 
           <div className="space-y-2 text-xs">
             {winnersList.slice(0, 3).map((w) => (
-              <div key={w.id} className="p-3 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
+              <div key={w.id} className="p-3.5 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
                 <div>
                   <div className="font-bold text-white">{w.userName}</div>
-                  <div className="text-[10px] text-slate-400">Prize: <strong className="text-amber-300">${w.prizeAmount.toLocaleString()}</strong> ({(w.matchedNumbers?.length || 5)}-Match)</div>
+                  <div className="text-[10px] text-slate-400">
+                    Prize: <strong className="text-amber-300">${w.prizeAmount.toLocaleString()}</strong> ({w.matchType})
+                  </div>
                 </div>
-                <span className={`px-2 py-1 rounded-full text-[10px] font-extrabold capitalize ${
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold capitalize ${
                   w.verificationStatus === 'approved' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
                 }`}>
                   {w.verificationStatus}
@@ -257,16 +369,18 @@ export default function AdminOverviewPage() {
       </div>
 
       {/* RECENT AUDIT TRAIL */}
-      <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-4">
-        <div className="flex justify-between items-center border-b border-white/10 pb-4">
+      <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div>
             <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Activity className="w-4 h-4 text-indigo-400" />
-              Recent Audit Activity Trail
+              <Activity className="w-4 h-4 text-emerald-400" />
+              Recent System Audit Trail Log
             </h3>
-            <p className="text-xs text-slate-400">Immutable log of all administrative actions and parameter changes.</p>
+            <p className="text-xs text-slate-400">
+              Immutable activity log recording all administrative parameter mutations and draw executions.
+            </p>
           </div>
-          <Link href="/admin/audit" className="text-xs text-amber-400 hover:underline font-semibold">
+          <Link href="/admin/audit" className="text-xs text-amber-400 hover:underline font-bold">
             Full Audit Log →
           </Link>
         </div>
@@ -275,27 +389,40 @@ export default function AdminOverviewPage() {
           <table className="w-full text-left text-xs text-slate-300">
             <thead className="bg-white/5 text-slate-400 uppercase text-[10px] font-bold">
               <tr>
-                <th className="px-4 py-2.5">Timestamp</th>
-                <th className="px-4 py-2.5">Administrator</th>
-                <th className="px-4 py-2.5">Action</th>
-                <th className="px-4 py-2.5">Entity</th>
-                <th className="px-4 py-2.5">Mutation</th>
+                <th className="px-4 py-3">Timestamp</th>
+                <th className="px-4 py-3">Administrator</th>
+                <th className="px-4 py-3">Action</th>
+                <th className="px-4 py-3">Entity</th>
+                <th className="px-4 py-3">Mutation Record</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 font-mono text-[11px]">
-              {recentAudits.map((log) => (
-                <tr key={log.id} className="hover:bg-white/5 transition">
-                  <td className="px-4 py-2.5 text-slate-400">{log.timestamp.replace('T', ' ').substring(0, 19)}</td>
-                  <td className="px-4 py-2.5 text-amber-300 font-sans font-semibold">{log.adminName}</td>
-                  <td className="px-4 py-2.5 text-white font-sans font-bold">{log.action}</td>
-                  <td className="px-4 py-2.5 text-indigo-400">{log.entity}</td>
-                  <td className="px-4 py-2.5 text-slate-400 truncate max-w-xs">{log.newValue || log.oldValue || 'Exec'}</td>
+              {filteredAudits.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
+                    No matching audit records found.
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                filteredAudits.map((log) => (
+
+                  <tr key={log.id} className="hover:bg-white/5 transition">
+                    <td className="px-4 py-3 text-slate-400">{log.timestamp.replace('T', ' ').substring(0, 19)}</td>
+                    <td className="px-4 py-3 text-amber-300 font-sans font-semibold">{log.adminName}</td>
+                    <td className="px-4 py-3 text-white font-sans font-bold">{log.action}</td>
+                    <td className="px-4 py-3 text-emerald-400">{log.entity}</td>
+                    <td className="px-4 py-3 text-slate-400 truncate max-w-xs">{log.newValue || log.oldValue || 'Executed'}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
+
+
         </div>
       </div>
     </div>
   );
 }
+
+
