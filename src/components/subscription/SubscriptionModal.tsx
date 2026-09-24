@@ -61,6 +61,9 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess, initialC
   useEffect(() => {
     if (!isOpen) return;
 
+    setErrorMessage(null);
+    setCompleted(false);
+
     const fetchServerPlans = async () => {
       try {
         const res = await fetch('/api/user/subscription', { cache: 'no-store' });
