@@ -252,7 +252,7 @@ export function dbGetUserByEmail(email: string): (User & { password_hash: string
   let row = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(cleanEmail) as any;
   if (!row) {
     const strippedEmail = cleanEmail.replace(/\s+/g, '');
-    row = db.prepare('SELECT * FROM users WHERE REPLACE(LOWER(email), " ", "") = ?').get(strippedEmail) as any;
+    row = db.prepare("SELECT * FROM users WHERE REPLACE(LOWER(email), ' ', '') = ?").get(strippedEmail) as any;
   }
   if (!row) return null;
 
@@ -649,15 +649,15 @@ export function dbSaveWinners(winners: Winner[]): void {
 export function dbGetLiveMetrics() {
   const db = getDb();
 
-  const totalUsers = (db.prepare('SELECT COUNT(*) as count FROM users WHERE role = "subscriber"').get() as any)?.count || 0;
-  const activeSubscribers = (db.prepare('SELECT COUNT(*) as count FROM users WHERE role = "subscriber" AND subscription_status = "active"').get() as any)?.count || 0;
+  const totalUsers = (db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'subscriber'").get() as any)?.count || 0;
+  const activeSubscribers = (db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'subscriber' AND subscription_status = 'active'").get() as any)?.count || 0;
   
-  const currentDraw = db.prepare('SELECT * FROM draws WHERE status = "scheduled" ORDER BY created_at DESC LIMIT 1').get() as any;
+  const currentDraw = db.prepare("SELECT * FROM draws WHERE status = 'scheduled' ORDER BY created_at DESC LIMIT 1").get() as any;
   const jackpot = currentDraw ? currentDraw.jackpot_pool : 40700;
 
   const totalCharityContributions = (db.prepare('SELECT SUM(total_raised) as sum FROM charities').get() as any)?.sum || 5000;
-  const pendingWinnersCount = (db.prepare('SELECT COUNT(*) as count FROM winners WHERE verification_status = "pending"').get() as any)?.count || 0;
-  const approvedUnpaidCount = (db.prepare('SELECT COUNT(*) as count FROM winners WHERE verification_status = "approved" AND payment_status != "paid"').get() as any)?.count || 0;
+  const pendingWinnersCount = (db.prepare("SELECT COUNT(*) as count FROM winners WHERE verification_status = 'pending'").get() as any)?.count || 0;
+  const approvedUnpaidCount = (db.prepare("SELECT COUNT(*) as count FROM winners WHERE verification_status = 'approved' AND payment_status != 'paid'").get() as any)?.count || 0;
 
   return {
     totalUsers,
