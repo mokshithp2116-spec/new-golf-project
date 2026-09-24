@@ -44,7 +44,7 @@ export const SUPPORTED_LANGUAGES: LanguageOption[] = [
 export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
   en: {
     brand_subtitle: 'Golf & Charity Platform',
-    banner_jackpot: 'March 2026 Monthly Draw is Live! 5-Number Jackpot:',
+    banner_jackpot: 'Official Monthly Championship Draw is Live! 5-Number Jackpot:',
     view_mechanics: 'View Mechanics →',
     how_it_works: 'How It Works',
     charities_impact: 'Charities & Impact',

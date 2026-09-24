@@ -150,20 +150,37 @@ export const INITIAL_GOLF_SCORES: GolfScore[] = [];
 export const INITIAL_DRAWS: Draw[] = [
   {
     id: 'draw-current-championship',
-    name: 'Current Live Championship Draw',
-    drawDate: '2026-09-30T20:00:00Z',
+    name: 'Official Monthly Championship Draw',
+    drawDate: new Date(Date.now() + 7 * 86400000).toISOString(),
     monthYear: '2026-09',
     status: 'scheduled',
     drawLogic: 'algorithmic',
-    winningNumbers: [9, 17, 28, 36, 42],
+    winningNumbers: [],
     totalPrizePool: 50000,
     jackpotPool: 40700,
     tier4Pool: 16975,
     tier3Pool: 12125,
     rolloverFromPrevious: 21300,
     rolloverToNext: 0,
-    totalSubscribersEntered: 0,
-  }
+    totalSubscribersEntered: 2380,
+  },
+  {
+    id: 'draw-prev-championship',
+    name: 'August Championship Draw',
+    drawDate: new Date(Date.now() - 25 * 86400000).toISOString(),
+    monthYear: '2026-08',
+    status: 'published',
+    drawLogic: 'algorithmic',
+    winningNumbers: [7, 14, 21, 35, 42],
+    totalPrizePool: 50000,
+    jackpotPool: 40700,
+    tier4Pool: 16975,
+    tier3Pool: 12125,
+    rolloverFromPrevious: 19400,
+    rolloverToNext: 40700,
+    totalSubscribersEntered: 2310,
+    publishedAt: new Date(Date.now() - 25 * 86400000).toISOString(),
+  },
 ];
 
 export const INITIAL_WINNERS: Winner[] = [];

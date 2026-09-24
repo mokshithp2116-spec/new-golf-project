@@ -322,7 +322,7 @@ export default function AdminOverviewPage() {
                 LIVE DRAW OPERATIONS CENTER
               </span>
               <h3 className="text-xl font-serif font-bold text-white mt-1">
-                {currentDraw?.name || 'March 2026 Grand Draw'}
+                {currentDraw?.name || 'Official Monthly Championship Draw'}
               </h3>
               <p className="text-xs text-slate-400 font-light mt-0.5">
                 Engine Mode: <strong className="text-slate-200 capitalize">{currentDraw?.drawLogic || 'Algorithmic'}</strong> · Eligible Golfers: <strong className="text-[#F5E6AB] font-bold">{activeSubscribers.length}</strong>
@@ -337,7 +337,7 @@ export default function AdminOverviewPage() {
             <div>
               <div className="text-xs text-slate-400 font-medium">Estimated Championship Jackpot</div>
               <div className="text-2xl sm:text-3xl font-serif font-bold gold-text">
-                ${currentDraw?.jackpotPool.toLocaleString()}
+                ${(currentDraw?.jackpotPool || 40700).toLocaleString()}
               </div>
             </div>
 

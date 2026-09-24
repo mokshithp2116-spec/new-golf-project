@@ -295,8 +295,24 @@
     {
       "id": "draw-current-championship",
       "name": "Official Monthly Championship Draw",
-      "drawDate": "2026-09-24T19:38:24.573Z",
+      "drawDate": "2026-09-30T20:00:00.000Z",
       "monthYear": "2026-09",
+      "status": "scheduled",
+      "drawLogic": "algorithmic",
+      "winningNumbers": [],
+      "totalPrizePool": 50000,
+      "jackpotPool": 40700,
+      "tier4Pool": 16975,
+      "tier3Pool": 12125,
+      "rolloverFromPrevious": 21300,
+      "rolloverToNext": 0,
+      "totalSubscribersEntered": 2380
+    },
+    {
+      "id": "draw-prev-championship",
+      "name": "August Championship Draw",
+      "drawDate": "2026-08-31T20:00:00.000Z",
+      "monthYear": "2026-08",
       "status": "published",
       "drawLogic": "algorithmic",
       "winningNumbers": [
@@ -312,8 +328,8 @@
       "tier3Pool": 12500,
       "rolloverFromPrevious": 21300,
       "rolloverToNext": 41300,
-      "totalSubscribersEntered": 2,
-      "publishedAt": "2026-09-24T19:38:24.573Z"
+      "totalSubscribersEntered": 2310,
+      "publishedAt": "2026-08-31T20:00:00.000Z"
     }
   ],
   "winners": [],

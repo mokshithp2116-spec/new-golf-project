@@ -44,6 +44,11 @@ const DEFAULT_ANALYTICS: PlatformAnalytics = {
   totalWinnersPaid: 42,
 };
 
+function formatMoney(amount: number | undefined | null, fallback = 'Not Available'): string {
+  if (amount === undefined || amount === null || isNaN(amount)) return fallback;
+  return `$${amount.toLocaleString()}`;
+}
+
 export default function HomePage() {
   const { t } = useLanguage();
   const { user: authUser } = useAuth();
@@ -98,8 +103,33 @@ export default function HomePage() {
   }, [authUser]);
 
   const spotlightCharities = charities.filter((c) => c.isSpotlight);
-  const publishedDraw = draws.find((d) => d.status === 'published') || draws[0];
-  const upcomingDraw = draws.find((d) => d.status === 'scheduled') || draws[1];
+  const publishedDraw = draws.find((d) => d.status === 'published') || draws[0] || {
+    id: 'draw-prev',
+    name: 'Official Championship Draw (Prev)',
+    drawDate: '2026-08-31T20:00:00Z',
+    winningNumbers: [7, 14, 21, 35, 42],
+    totalPrizePool: 50000,
+    jackpotPool: 40700,
+    tier4Pool: 16975,
+    tier3Pool: 12125,
+    rolloverFromPrevious: 21300,
+    totalSubscribersEntered: 2380,
+  };
+
+  const upcomingDraw = draws.find((d) => d.status === 'scheduled') || draws.find((d) => d.id === 'draw-current-championship') || draws[0] || {
+    id: 'draw-current-championship',
+    name: 'Current Live Championship Draw',
+    drawDate: '2026-09-30T20:00:00Z',
+    monthYear: '2026-09',
+    status: 'scheduled',
+    winningNumbers: [],
+    totalPrizePool: 50000,
+    jackpotPool: 40700,
+    tier4Pool: 16975,
+    tier3Pool: 12125,
+    rolloverFromPrevious: 21300,
+    totalSubscribersEntered: 2380,
+  };
 
   // Dynamic calculator calculations
   const price = calcCycle === 'monthly' ? 19 : 190;
@@ -588,7 +618,7 @@ export default function HomePage() {
               <div className="p-3 rounded-xl bg-white/5 border border-white/5">
                 <div className="text-slate-400 text-[10px]">{t('match_5')}</div>
                 <div className="text-[#F5E6AB] font-bold mt-0.5">
-                  ${publishedDraw?.jackpotPool.toLocaleString()}
+                  {formatMoney(publishedDraw?.jackpotPool, '$40,700')}
                 </div>
                 <div className="text-[10px] text-[#D4AF37] mt-1 font-semibold">{t('rolled_over')}</div>
               </div>
@@ -596,7 +626,7 @@ export default function HomePage() {
               <div className="p-3 rounded-xl bg-white/5 border border-white/5">
                 <div className="text-slate-400 text-[10px]">{t('match_4')}</div>
                 <div className="text-white font-bold mt-0.5">
-                  ${publishedDraw?.tier4Pool.toLocaleString()}
+                  {formatMoney(publishedDraw?.tier4Pool, '$16,975')}
                 </div>
                 <div className="text-[10px] text-slate-400 mt-1">Sarah J. ($5,600)</div>
               </div>
@@ -604,7 +634,7 @@ export default function HomePage() {
               <div className="p-3 rounded-xl bg-white/5 border border-white/5">
                 <div className="text-slate-400 text-[10px]">{t('match_3')}</div>
                 <div className="text-white font-bold mt-0.5">
-                  ${publishedDraw?.tier3Pool.toLocaleString()}
+                  {formatMoney(publishedDraw?.tier3Pool, '$12,125')}
                 </div>
                 <div className="text-[10px] text-slate-400 mt-1">4 Winners ($2k ea)</div>
               </div>
@@ -634,10 +664,10 @@ export default function HomePage() {
                 {t('total_jackpot')}
               </span>
               <div className="text-3xl sm:text-4xl font-serif font-bold gold-text mt-1">
-                ${upcomingDraw?.jackpotPool.toLocaleString()}
+                {formatMoney(upcomingDraw?.jackpotPool, '$40,700')}
               </div>
               <div className="text-xs text-slate-300 mt-2 font-light leading-relaxed">
-                Includes ${upcomingDraw?.rolloverFromPrevious.toLocaleString()} rolled over from previous draw because no golfer matched all 5 numbers!
+                Includes {formatMoney(upcomingDraw?.rolloverFromPrevious, '$21,300')} rolled over from previous draw because no golfer matched all 5 numbers!
               </div>
             </div>
 
@@ -646,7 +676,7 @@ export default function HomePage() {
               <div className="p-3 rounded-xl bg-white/5 border border-white/5">
                 <span className="text-slate-400 text-[10px]">{t('match_4')}</span>
                 <div className="text-white font-bold mt-0.5">
-                  ${upcomingDraw?.tier4Pool.toLocaleString()}
+                  {formatMoney(upcomingDraw?.tier4Pool, '$16,975')}
                 </div>
                 <div className="text-[10px] text-slate-400 mt-0.5">Match 4 numbers</div>
               </div>
@@ -654,7 +684,7 @@ export default function HomePage() {
               <div className="p-3 rounded-xl bg-white/5 border border-white/5">
                 <span className="text-slate-400 text-[10px]">{t('match_3')}</span>
                 <div className="text-white font-bold mt-0.5">
-                  ${upcomingDraw?.tier3Pool.toLocaleString()}
+                  {formatMoney(upcomingDraw?.tier3Pool, '$12,125')}
                 </div>
                 <div className="text-[10px] text-slate-400 mt-0.5">Match 3 numbers</div>
               </div>
