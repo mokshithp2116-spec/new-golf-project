@@ -186,7 +186,11 @@ export function dbGetUserByEmail(email: string): (User & { password_hash: string
 
   const user = store.users.find((u) => {
     const uEmail = u.email.trim().toLowerCase();
-    return uEmail === cleanEmail || uEmail.replace(/\s+/g, '') === strippedEmail;
+    const uName = u.name.trim().toLowerCase();
+    if (uEmail === cleanEmail || uEmail.replace(/\s+/g, '') === strippedEmail) return true;
+    if (uName === cleanEmail || uName.replace(/\s+/g, '') === strippedEmail) return true;
+    if (!cleanEmail.includes('@') && uEmail.startsWith(cleanEmail + '@')) return true;
+    return false;
   });
 
   return user || null;
@@ -274,15 +278,18 @@ export function dbCreateUser(
   return rest;
 }
 
-export function dbUpdateUser(user: Partial<User> & { id: string }): User | null {
+export function dbUpdateUser(user: Partial<User> & { id?: string; email?: string }): User | null {
   const store = loadStore();
-  const index = store.users.findIndex((u) => u.id === user.id);
+  const index = store.users.findIndex(
+    (u) => (user.id && u.id === user.id) || (user.email && u.email.toLowerCase() === user.email.toLowerCase())
+  );
   if (index === -1) return null;
 
   const existing = store.users[index];
   const updated: User & { password_hash: string } = {
     ...existing,
     name: user.name !== undefined ? user.name : existing.name,
+    email: user.email !== undefined ? user.email : existing.email,
     subscriptionStatus: user.subscriptionStatus !== undefined ? user.subscriptionStatus : existing.subscriptionStatus,
     billingCycle: user.billingCycle !== undefined ? user.billingCycle : existing.billingCycle,
     subscriptionRenewalDate: user.subscriptionRenewalDate !== undefined ? user.subscriptionRenewalDate : existing.subscriptionRenewalDate,

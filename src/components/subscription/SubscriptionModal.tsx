@@ -93,6 +93,8 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess, initialC
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          userId: user?.id,
+          email: user?.email,
           billingCycle: activeCycle,
           charityId,
           charityContributionPct: charityPct,

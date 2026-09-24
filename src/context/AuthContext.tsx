@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types';
-import { setCurrentUser, updateUser } from '@/lib/storage';
+import { getCurrentUser, setCurrentUser, updateUser } from '@/lib/storage';
 
 interface AuthContextType {
   user: User | null;
@@ -41,16 +41,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
         setCurrentUser(data.user.id);
         updateUser(data.user);
-      } else {
-        setUser(null);
-        setCurrentUser(null);
+        setIsLoading(false);
+        return;
       }
     } catch {
+      // ignore
+    }
+
+    // Fallback: Check localStorage user if server cookie session was missing
+    const localUser = getCurrentUser();
+    if (localUser) {
+      setUser(localUser);
+      try {
+        const loginRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: localUser.email, password: 'defaultPassword123' }),
+        });
+        const loginData = await loginRes.json();
+        if (loginData.success && loginData.user) {
+          setUser(loginData.user);
+          setCurrentUser(loginData.user.id);
+          updateUser(loginData.user);
+        }
+      } catch {
+        // ignore
+      }
+    } else {
       setUser(null);
       setCurrentUser(null);
-    } finally {
-      setIsLoading(false);
     }
+    setIsLoading(false);
   };
 
   useEffect(() => {

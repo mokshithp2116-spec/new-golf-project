@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 export default function UserProfilePage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [nameInput, setNameInput] = useState(user?.name || '');
   const [handicapInput, setHandicapInput] = useState(user?.handicap?.toString() || '15.0');
   const [clubInput, setClubInput] = useState(user?.homeClub || 'City Links Club');
@@ -32,6 +32,8 @@ export default function UserProfilePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          userId: user?.id,
+          email: user?.email,
           name: nameInput,
           handicap: parseFloat(handicapInput) || 15.0,
           homeClub: clubInput,
@@ -40,6 +42,11 @@ export default function UserProfilePage() {
 
       const data = await res.json();
       if (data.success) {
+        if (data.user) {
+          const { updateUser } = await import('@/lib/storage');
+          updateUser(data.user);
+        }
+        await refreshUser();
         setMessage('Profile updated successfully!');
       } else {
         setMessage('Failed to update profile.');

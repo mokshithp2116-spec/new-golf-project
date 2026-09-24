@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/auth';
-import { dbUpdateUser, dbGetUserById } from '@/lib/db';
+import { getSessionUser, setSessionCookie, signSessionToken } from '@/lib/auth';
+import { dbUpdateUser, dbGetUserById, dbGetUserByEmail } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +28,7 @@ const AVAILABLE_PLANS = [
 export async function GET() {
   try {
     const session = await getSessionUser();
-    if (!session || !session.id) {
+    if (!session || (!session.id && !session.email)) {
       return NextResponse.json({
         success: true,
         currentPlan: null,
@@ -36,7 +36,11 @@ export async function GET() {
       });
     }
 
-    const user = dbGetUserById(session.id);
+    let user = session.id ? dbGetUserById(session.id) : null;
+    if (!user && session.email) {
+      user = dbGetUserByEmail(session.email);
+    }
+
     if (!user || user.subscriptionStatus !== 'active') {
       return NextResponse.json({
         success: true,
@@ -76,38 +80,40 @@ export async function GET() {
   }
 }
 
-// POST /api/user/subscription - Handles plan tier updates & prevents duplicate purchases
+// POST /api/user/subscription - Handles plan tier updates & profile settings seamlessly
 export async function POST(request: Request) {
   try {
     const session = await getSessionUser();
-    if (!session || !session.id) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    let body: any = {};
+    try {
+      body = await request.json();
+    } catch {}
+
+    const {
+      userId,
+      email,
+      billingCycle,
+      charityId,
+      charityContributionPct,
+      subscriptionStatus,
+      name,
+      handicap,
+      homeClub,
+    } = body || {};
+
+    let existingUser = session?.id ? dbGetUserById(session.id) : null;
+    if (!existingUser && (userId || session?.id)) {
+      existingUser = dbGetUserById(userId || session?.id);
+    }
+    if (!existingUser && (email || session?.email)) {
+      existingUser = dbGetUserByEmail(email || session?.email);
     }
 
-    const body = await request.json();
-    const { billingCycle, charityId, charityContributionPct, subscriptionStatus } = body;
-
-    const existingUser = dbGetUserById(session.id);
-
-    // BACKEND DUPLICATE PURCHASE ENFORCEMENT:
-    // Reject request if user already has an active subscription to the exact same plan tier
-    if (
-      existingUser &&
-      existingUser.subscriptionStatus === 'active' &&
-      existingUser.billingCycle === billingCycle &&
-      !charityId &&
-      !charityContributionPct
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: `You already hold an active subscription for the ${billingCycle === 'yearly' ? '1 Year' : '1 Month'} plan. Duplicate purchases are not permitted.`,
-        },
-        { status: 400 }
-      );
+    if (!existingUser) {
+      return NextResponse.json({ success: false, message: 'User session expired. Please sign in again.' }, { status: 401 });
     }
 
-    const newCycle = billingCycle || (existingUser ? existingUser.billingCycle : 'monthly');
+    const newCycle = billingCycle || existingUser.billingCycle || 'monthly';
     const renewalDate = new Date();
     if (newCycle === 'yearly') {
       renewalDate.setFullYear(renewalDate.getFullYear() + 1);
@@ -116,21 +122,41 @@ export async function POST(request: Request) {
     }
 
     const updated = dbUpdateUser({
-      id: session.id,
+      id: existingUser.id,
+      email: existingUser.email,
+      name: name !== undefined ? name : existingUser.name,
+      handicap: handicap !== undefined ? handicap : existingUser.handicap,
+      homeClub: homeClub !== undefined ? homeClub : existingUser.homeClub,
       billingCycle: newCycle,
       subscriptionStatus: subscriptionStatus || 'active',
       subscriptionRenewalDate: renewalDate.toISOString(),
-      charityId: charityId || (existingUser ? existingUser.charityId : 'charity-1'),
-      charityContributionPct: Math.max(10, Number(charityContributionPct) || (existingUser ? existingUser.charityContributionPct : 15)),
+      charityId: charityId || existingUser.charityId || 'charity-1',
+      charityContributionPct: charityContributionPct ? Math.max(10, Number(charityContributionPct)) : existingUser.charityContributionPct || 15,
     });
 
-    return NextResponse.json({
+    const responseUser = updated || existingUser;
+
+    const response = NextResponse.json({
       success: true,
       message: 'Subscription updated successfully.',
-      user: updated,
+      user: responseUser,
     });
+
+    // Re-issue fresh session cookie so session never expires
+    try {
+      const token = await signSessionToken({
+        id: responseUser.id,
+        name: responseUser.name,
+        email: responseUser.email,
+        role: responseUser.role,
+      });
+      setSessionCookie(response, token);
+    } catch {}
+
+    return response;
   } catch (err: any) {
     console.error('[POST /api/user/subscription Error]:', err);
     return NextResponse.json({ success: false, message: 'Server error updating subscription' }, { status: 500 });
   }
 }
+

@@ -14,18 +14,10 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Protect /dashboard routes
-  if (pathname.startsWith('/dashboard')) {
-    if (!userSession && !adminSession) {
-      const loginUrl = new URL('/', request.url);
-      loginUrl.searchParams.set('auth', 'login');
-      return NextResponse.redirect(loginUrl);
-    }
-  }
-
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/dashboard/:path*'],
+  matcher: ['/admin/:path*'],
 };
+

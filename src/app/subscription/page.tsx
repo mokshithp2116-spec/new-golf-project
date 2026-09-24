@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 export default function SubscriptionPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [subModalOpen, setSubModalOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -36,12 +36,20 @@ export default function SubscriptionPage() {
       const res = await fetch('/api/user/subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ billingCycle: newCycle }),
+        body: JSON.stringify({
+          userId: user?.id,
+          email: user?.email,
+          billingCycle: newCycle,
+        }),
       });
       const data = await res.json();
       if (data.success) {
+        if (data.user) {
+          const { updateUser } = await import('@/lib/storage');
+          updateUser(data.user);
+        }
+        await refreshUser();
         setMessage(`Subscription plan updated to ${newCycle === 'yearly' ? '1 Year (Annual)' : '1 Month (Monthly)'} billing!`);
-        window.location.reload();
       } else {
         setMessage('Failed to update subscription.');
       }
