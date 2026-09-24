@@ -104,7 +104,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Trigger Notifications ONLY on Successful Login
+    // 4. Record Live Activity Log
+    try {
+      const { dbRecordActivity } = await import('@/lib/db');
+      dbRecordActivity(user.id, user.name, user.email, 'LOGIN', 'User logged in to platform', ip);
+    } catch {}
+
+    // 5. Trigger Notifications ONLY on Successful Login
     await sendAuthNotification({
       event: 'LOGIN',
       name: user.name,

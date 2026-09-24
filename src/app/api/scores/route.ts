@@ -35,6 +35,26 @@ export async function GET() {
   }
 }
 
+// Helper to normalize dates to YYYY-MM-DD format
+function normalizeDate(rawDate: string): string {
+  if (!rawDate) return new Date().toISOString().split('T')[0];
+  const str = rawDate.trim();
+  // Handle DD/MM/YYYY
+  if (str.includes('/')) {
+    const parts = str.split('/');
+    if (parts.length === 3) {
+      if (parts[2].length === 4) {
+        // DD/MM/YYYY -> YYYY-MM-DD
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      } else if (parts[0].length === 4) {
+        // YYYY/MM/DD -> YYYY-MM-DD
+        return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+      }
+    }
+  }
+  return str.split('T')[0];
+}
+
 // POST /api/scores - Add new golf score for authenticated user (strictly server-enforced userId)
 export async function POST(request: Request) {
   try {
@@ -61,27 +81,42 @@ export async function POST(request: Request) {
       );
     }
 
+    const cleanDate = normalizeDate(date);
+    const { getDb, dbEnsureUserExists, dbRecordActivity } = await import('@/lib/db');
+    
+    // Ensure session user exists in SQLite DB to satisfy foreign key constraint
+    dbEnsureUserExists({
+      id: session.id,
+      email: session.email,
+      name: session.name,
+    });
+
     const db = getDb();
 
     // Check duplicate date for THIS authenticated user
-    const existingDate = db
+    const existingScore = db
       .prepare('SELECT id FROM golf_scores WHERE user_id = ? AND score_date = ?')
-      .get(session.id, date);
+      .get(session.id, cleanDate) as any;
 
-    if (existingDate) {
-      return NextResponse.json(
-        { success: false, message: `A score for date ${date} already exists for your account.` },
-        { status: 409 }
-      );
-    }
-
-    const newId = `sc-${Date.now()}`;
     const now = new Date().toISOString();
+    let finalId = existingScore ? existingScore.id : `sc-${Date.now()}`;
 
-    db.prepare(`
-      INSERT INTO golf_scores (id, user_id, score, score_date, course_name, notes, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(newId, session.id, scoreNum, date, courseName || 'Local Course', notes || '', now);
+    if (existingScore) {
+      // Upsert/Update score if already exists for date
+      db.prepare(`
+        UPDATE golf_scores SET
+          score = ?,
+          course_name = ?,
+          notes = ?
+        WHERE id = ? AND user_id = ?
+      `).run(scoreNum, courseName || 'Local Course', notes || '', finalId, session.id);
+    } else {
+      // Insert new score
+      db.prepare(`
+        INSERT INTO golf_scores (id, user_id, score, score_date, course_name, notes, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(finalId, session.id, scoreNum, cleanDate, courseName || 'Local Course', notes || '', now);
+    }
 
     // Evict oldest score if total exceeds 5 for this user
     const userScores = db
@@ -94,14 +129,18 @@ export async function POST(request: Request) {
         .run(session.id, ...idsToKeep);
     }
 
+    try {
+      dbRecordActivity(session.id, session.name || 'User', session.email, 'SUBMIT_SCORE', `Logged Stableford score ${scoreNum} for ${cleanDate}`);
+    } catch {}
+
     return NextResponse.json({
       success: true,
-      message: 'Score added successfully.',
+      message: 'Score saved successfully.',
       score: {
-        id: newId,
+        id: finalId,
         userId: session.id,
         score: scoreNum,
-        date,
+        date: cleanDate,
         courseName: courseName || 'Local Course',
         notes: notes || '',
         createdAt: now,
@@ -109,7 +148,7 @@ export async function POST(request: Request) {
     });
   } catch (err: any) {
     console.error('[POST /api/scores Error]:', err);
-    return NextResponse.json({ success: false, message: 'Server error saving score' }, { status: 500 });
+    return NextResponse.json({ success: false, message: err?.message || 'Server error saving score' }, { status: 500 });
   }
 }
 

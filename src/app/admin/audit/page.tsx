@@ -22,8 +22,18 @@ export default function AdminAuditLogPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEntity, setSelectedEntity] = useState<string>('all');
 
-  const loadData = () => {
-    setLogs(getAuditLogs());
+  const loadData = async () => {
+    try {
+      const res = await fetch('/api/admin/metrics', { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success && data.auditLogs) {
+        setLogs(data.auditLogs);
+      } else {
+        setLogs(getAuditLogs());
+      }
+    } catch {
+      setLogs(getAuditLogs());
+    }
   };
 
   useEffect(() => {

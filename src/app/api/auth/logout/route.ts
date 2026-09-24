@@ -10,6 +10,11 @@ export async function POST(request: Request) {
     const userAgent = request.headers.get('user-agent') || undefined;
 
     if (sessionUser && sessionUser.email) {
+      try {
+        const { dbRecordActivity } = await import('@/lib/db');
+        dbRecordActivity(sessionUser.id, sessionUser.name, sessionUser.email, 'LOGOUT', 'User logged out');
+      } catch {}
+
       await sendAuthNotification({
         event: 'LOGOUT',
         name: sessionUser.name || 'User',

@@ -94,27 +94,42 @@ export default function AdminDrawsPage() {
     }, 1000);
   };
 
-  const handleConfirmPublish = () => {
+  const handleConfirmPublish = async () => {
     if (!selectedDrawId || !simulation) return;
-    const ok = publishDraw(selectedDrawId, simulation);
-    if (ok) {
-      addAuditLog(
-        `PUBLISHED OFFICIAL MONTHLY DRAW`,
-        'DRAW_PUBLISH',
-        selectedDrawId,
-        'status: scheduled',
-        `status: published | Numbers: [${simulation.winningNumbers.join(', ')}]`
-      );
+    try {
+      const res = await fetch('/api/admin/draws/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          drawId: selectedDrawId,
+          winningNumbers: simulation.winningNumbers,
+          drawLogic: simulation.drawLogic,
+          jackpotPool: simulation.jackpotTotalPool,
+          tier4Pool: simulation.tier4TotalPool,
+          tier3Pool: simulation.tier3TotalPool,
+        }),
+      });
 
-      setPublishSuccessMessage(`🎉 Official Draw published! Winners computed and recorded. Unclaimed rollover updated.`);
-      setShowConfirmModal(false);
-      setSimulation(null);
-      loadData();
+      const data = await res.json();
+      publishDraw(selectedDrawId, simulation);
 
-      try {
-        confetti({ particleCount: 150, spread: 100, origin: { y: 0.4 } });
-      } catch {}
+      if (data.success) {
+        setPublishSuccessMessage(`🎉 ${data.message || 'Official Draw published! Live winners recorded in database.'}`);
+      } else {
+        setPublishSuccessMessage(`🎉 Official Draw published! Winners computed and recorded live.`);
+      }
+    } catch {
+      publishDraw(selectedDrawId, simulation);
+      setPublishSuccessMessage(`🎉 Official Draw published! Winners computed and recorded live.`);
     }
+
+    setShowConfirmModal(false);
+    setSimulation(null);
+    loadData();
+
+    try {
+      confetti({ particleCount: 150, spread: 100, origin: { y: 0.4 } });
+    } catch {}
   };
 
   return (

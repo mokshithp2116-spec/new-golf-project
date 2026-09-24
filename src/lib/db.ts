@@ -2,12 +2,8 @@ import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
 import path from 'path';
 import fs from 'fs';
-import { User, GolfScore, Charity, Draw, Winner, DirectDonation } from '@/types';
-import {
-  INITIAL_USERS,
-  INITIAL_CHARITIES,
-  INITIAL_GOLF_SCORES,
-} from './mockData';
+import { User, GolfScore, Charity, Draw, Winner } from '@/types';
+import { INITIAL_CHARITIES } from './mockData';
 
 let dbInstance: Database.Database | null = null;
 let isInitialized = false;
@@ -46,7 +42,7 @@ function initDb(db: Database.Database) {
       subscription_start_date TEXT,
       subscription_renewal_date TEXT,
       charity_id TEXT DEFAULT 'charity-1',
-      charity_contribution_pct INTEGER DEFAULT 10,
+      charity_contribution_pct INTEGER DEFAULT 15,
       handicap REAL DEFAULT 15.0,
       home_club TEXT DEFAULT 'City Links Club',
       created_at TEXT NOT NULL
@@ -78,46 +74,126 @@ function initDb(db: Database.Database) {
       supporter_count INTEGER DEFAULT 0,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS draws (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      draw_date TEXT NOT NULL,
+      month_year TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'scheduled',
+      draw_logic TEXT NOT NULL DEFAULT 'algorithmic',
+      winning_numbers TEXT NOT NULL,
+      total_prize_pool REAL NOT NULL DEFAULT 50000,
+      jackpot_pool REAL NOT NULL DEFAULT 40700,
+      tier4_pool REAL NOT NULL DEFAULT 16975,
+      tier3_pool REAL NOT NULL DEFAULT 12125,
+      rollover_from_previous REAL NOT NULL DEFAULT 0,
+      rollover_to_next REAL NOT NULL DEFAULT 0,
+      total_subscribers_entered INTEGER NOT NULL DEFAULT 0,
+      published_at TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS winners (
+      id TEXT PRIMARY KEY,
+      draw_id TEXT NOT NULL,
+      draw_name TEXT NOT NULL,
+      draw_date TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      user_name TEXT NOT NULL,
+      user_email TEXT NOT NULL,
+      match_type TEXT NOT NULL,
+      matched_numbers TEXT NOT NULL,
+      user_scores_at_draw TEXT NOT NULL,
+      prize_amount REAL NOT NULL,
+      verification_status TEXT NOT NULL DEFAULT 'pending',
+      proof_image_url TEXT,
+      proof_uploaded_at TEXT,
+      payment_status TEXT NOT NULL DEFAULT 'pending',
+      paid_at TEXT,
+      admin_notes TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(draw_id) REFERENCES draws(id) ON DELETE CASCADE,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS user_activity (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      user_name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      action TEXT NOT NULL,
+      details TEXT,
+      ip_address TEXT,
+      timestamp TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id TEXT PRIMARY KEY,
+      timestamp TEXT NOT NULL,
+      admin_name TEXT NOT NULL,
+      action TEXT NOT NULL,
+      entity TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      old_value TEXT,
+      new_value TEXT,
+      ip_address TEXT
+    );
   `);
 
-  // Seed initial users if empty
+  // Seed / Ensure Required Admin Accounts
+  const adminAccounts = [
+    {
+      id: 'admin-mokshith',
+      name: 'Mokshith P',
+      email: 'mokshithp@gmail.com',
+      pass: '16421642',
+    },
+    {
+      id: 'admin-mokshith1642',
+      name: 'Mokshith P 1642',
+      email: 'mokshithp1642@gmail.com',
+      pass: '16421642',
+    },
+    {
+      id: 'admin-digitalheroes',
+      name: 'Digital Heroes Admin',
+      email: 'Digital Heroes@gmail.com',
+      pass: 'Digiital Password12345',
+    },
+    {
+      id: 'admin-digitalheroes-clean',
+      name: 'Digital Heroes Admin',
+      email: 'digitalheroes@gmail.com',
+      pass: 'Digiital Password12345',
+    },
+  ];
+
   try {
-    const userCount = (db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number })?.count || 0;
-    if (userCount === 0) {
-      console.log('[DB] Seeding initial database records...');
-      const insertUser = db.prepare(`
-        INSERT INTO users (
-          id, name, email, password_hash, role, subscription_status, billing_cycle,
-          subscription_start_date, subscription_renewal_date, charity_id,
-          charity_contribution_pct, handicap, home_club, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
+    const upsertUser = db.prepare(`
+      INSERT INTO users (
+        id, name, email, password_hash, role, subscription_status, billing_cycle,
+        subscription_start_date, subscription_renewal_date, charity_id,
+        charity_contribution_pct, handicap, home_club, created_at
+      ) VALUES (?, ?, ?, ?, 'admin', 'active', 'yearly', ?, ?, 'charity-1', 25, 4.0, 'Royal Club', ?)
+      ON CONFLICT(email) DO UPDATE SET
+        password_hash = excluded.password_hash,
+        role = 'admin'
+    `);
 
-      db.transaction(() => {
-        for (const u of INITIAL_USERS) {
-          const plainPass = 'password123';
-          const salt = bcrypt.genSaltSync(10);
-          const hash = bcrypt.hashSync(plainPass, salt);
+    const now = new Date().toISOString();
+    const renewal = new Date(Date.now() + 365 * 86400000).toISOString();
 
-          insertUser.run(
-            u.id,
-            u.name,
-            u.email.toLowerCase(),
-            hash,
-            u.role,
-            u.subscriptionStatus,
-            u.billingCycle,
-            u.subscriptionStartDate,
-            u.subscriptionRenewalDate,
-            u.charityId || 'charity-1',
-            u.charityContributionPct || 15,
-            u.handicap || 14.5,
-            u.homeClub || 'City Links Club',
-            u.createdAt
-          );
-        }
+    db.transaction(() => {
+      for (const adm of adminAccounts) {
+        const salt = bcrypt.genSaltSync(10);
+        const hash = bcrypt.hashSync(adm.pass, salt);
+        upsertUser.run(adm.id, adm.name, adm.email.toLowerCase(), hash, now, renewal, now);
+      }
 
-        // Seed Charities
+      // Seed Charities if empty
+      const charityCount = (db.prepare('SELECT COUNT(*) as count FROM charities').get() as any)?.count || 0;
+      if (charityCount === 0) {
         const insertCharity = db.prepare(`
           INSERT INTO charities (
             id, name, tagline, category, description, impact_story, image_url, website_url,
@@ -128,23 +204,41 @@ function initDb(db: Database.Database) {
           insertCharity.run(
             c.id, c.name, c.tagline, c.category, c.description, c.impactStory,
             c.imageUrl, c.websiteUrl, c.isSpotlight ? 1 : 0, c.totalRaised, c.supporterCount,
-            new Date().toISOString()
+            now
           );
         }
+      }
 
-        // Seed Scores
-        const insertScore = db.prepare(`
-          INSERT INTO golf_scores (id, user_id, score, score_date, course_name, notes, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `);
-        for (const s of INITIAL_GOLF_SCORES) {
-          insertScore.run(s.id, s.userId, s.score, s.date, s.courseName || 'Local Course', s.notes || '', s.createdAt);
-        }
-      })();
-      console.log('[DB] Initial records successfully seeded!');
-    }
+      // Seed Initial Active Scheduled Draw if empty
+      const drawCount = (db.prepare('SELECT COUNT(*) as count FROM draws').get() as any)?.count || 0;
+      if (drawCount === 0) {
+        db.prepare(`
+          INSERT INTO draws (
+            id, name, draw_date, month_year, status, draw_logic, winning_numbers,
+            total_prize_pool, jackpot_pool, tier4_pool, tier3_pool, rollover_from_previous,
+            rollover_to_next, total_subscribers_entered, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          'draw-current-championship',
+          'Current Live Championship Draw',
+          new Date(Date.now() + 7 * 86400000).toISOString(),
+          '2026-09',
+          'scheduled',
+          'algorithmic',
+          JSON.stringify([9, 17, 28, 36, 42]),
+          50000,
+          40700,
+          16975,
+          12125,
+          21300,
+          0,
+          1,
+          now
+        );
+      }
+    })();
   } catch (err) {
-    // Ignore duplicate/lock errors during concurrent seeding
+    console.error('[DB Init Error]:', err);
   }
 }
 
@@ -153,7 +247,13 @@ function initDb(db: Database.Database) {
 export function dbGetUserByEmail(email: string): (User & { password_hash: string }) | null {
   const db = getDb();
   const cleanEmail = email.trim().toLowerCase();
-  const row = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(cleanEmail) as any;
+  
+  // Also handle spaces inside email strings if user types e.g. "Digital Heroes@gmail.com"
+  let row = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(cleanEmail) as any;
+  if (!row) {
+    const strippedEmail = cleanEmail.replace(/\s+/g, '');
+    row = db.prepare('SELECT * FROM users WHERE REPLACE(LOWER(email), " ", "") = ?').get(strippedEmail) as any;
+  }
   if (!row) return null;
 
   return {
@@ -196,6 +296,35 @@ export function dbGetUserById(id: string): User | null {
   };
 }
 
+export function dbEnsureUserExists(user: Partial<User> & { id: string; email: string; name?: string }): User {
+  const db = getDb();
+  const existing = dbGetUserById(user.id) || dbGetUserByEmail(user.email);
+  if (existing) return existing;
+
+  const now = new Date().toISOString();
+  const renewalDate = new Date(Date.now() + 30 * 86400000).toISOString();
+  const salt = bcrypt.genSaltSync(10);
+  const hash = bcrypt.hashSync('defaultPass123', salt);
+
+  db.prepare(`
+    INSERT INTO users (
+      id, name, email, password_hash, role, subscription_status, billing_cycle,
+      subscription_start_date, subscription_renewal_date, charity_id,
+      charity_contribution_pct, handicap, home_club, created_at
+    ) VALUES (?, ?, ?, ?, 'subscriber', 'active', 'monthly', ?, ?, 'charity-1', 15, 15.0, 'City Links Club', ?)
+  `).run(
+    user.id,
+    (user.name || user.email.split('@')[0]).trim(),
+    user.email.trim().toLowerCase(),
+    hash,
+    now,
+    renewalDate,
+    now
+  );
+
+  return dbGetUserById(user.id)!;
+}
+
 export function dbCreateUser(
   name: string,
   email: string,
@@ -208,7 +337,7 @@ export function dbCreateUser(
   const cleanEmail = email.trim().toLowerCase();
   const id = `user-${Date.now()}`;
   const now = new Date().toISOString();
-  const renewalDate = new Date(Date.now() + 30 * 86400000).toISOString();
+  const renewalDate = new Date(Date.now() + (billingCycle === 'yearly' ? 365 : 30) * 86400000).toISOString();
 
   const stmt = db.prepare(`
     INSERT INTO users (
@@ -230,6 +359,8 @@ export function dbCreateUser(
     Math.max(10, charityContributionPct),
     now
   );
+
+  dbRecordActivity(id, name.trim(), cleanEmail, 'SIGNUP', `Registered with ${billingCycle} plan`);
 
   return {
     id,
@@ -278,7 +409,12 @@ export function dbUpdateUser(user: Partial<User> & { id: string }): User | null 
     user.id
   );
 
-  return dbGetUserById(user.id);
+  const updated = dbGetUserById(user.id);
+  if (updated && user.subscriptionStatus) {
+    dbRecordActivity(updated.id, updated.name, updated.email, 'SUBSCRIBE', `Updated status to ${user.subscriptionStatus}`);
+  }
+
+  return updated;
 }
 
 export function dbGetAllUsers(): User[] {
@@ -299,4 +435,238 @@ export function dbGetAllUsers(): User[] {
     homeClub: r.home_club,
     createdAt: r.created_at,
   }));
+}
+
+// ----------------- LIVE ACTIVITY & AUDIT LOGS -----------------
+
+export function dbRecordActivity(
+  userId: string,
+  userName: string,
+  email: string,
+  action: string,
+  details?: string,
+  ipAddress?: string
+) {
+  try {
+    const db = getDb();
+    db.prepare(`
+      INSERT INTO user_activity (id, user_id, user_name, email, action, details, ip_address, timestamp)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      `act-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      userId,
+      userName,
+      email,
+      action,
+      details || '',
+      ipAddress || '127.0.0.1',
+      new Date().toISOString()
+    );
+  } catch (err) {
+    console.error('[DB Activity Log Error]:', err);
+  }
+}
+
+export function dbGetActivities(limit = 20): any[] {
+  const db = getDb();
+  return db.prepare('SELECT * FROM user_activity ORDER BY timestamp DESC LIMIT ?').all(limit);
+}
+
+export function dbRecordAuditLog(
+  adminName: string,
+  action: string,
+  entity: string,
+  entityId: string,
+  oldValue?: string,
+  newValue?: string,
+  ipAddress?: string
+) {
+  try {
+    const db = getDb();
+    db.prepare(`
+      INSERT INTO audit_logs (id, timestamp, admin_name, action, entity, entity_id, old_value, new_value, ip_address)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      `audit-${Date.now()}`,
+      new Date().toISOString(),
+      adminName,
+      action,
+      entity,
+      entityId,
+      oldValue || null,
+      newValue || null,
+      ipAddress || '127.0.0.1'
+    );
+  } catch (err) {
+    console.error('[DB Audit Log Error]:', err);
+  }
+}
+
+export function dbGetAuditLogs(limit = 50): any[] {
+  const db = getDb();
+  return db.prepare('SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT ?').all(limit);
+}
+
+// ----------------- DRAWS & WINNERS OPERATIONS -----------------
+
+export function dbGetAllDraws(): Draw[] {
+  const db = getDb();
+  const rows = db.prepare('SELECT * FROM draws ORDER BY created_at DESC').all() as any[];
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    drawDate: r.draw_date,
+    monthYear: r.month_year,
+    status: r.status,
+    drawLogic: r.draw_logic,
+    winningNumbers: JSON.parse(r.winning_numbers || '[]'),
+    totalPrizePool: r.total_prize_pool,
+    jackpotPool: r.jackpot_pool,
+    tier4Pool: r.tier4_pool,
+    tier3Pool: r.tier3_pool,
+    rolloverFromPrevious: r.rollover_from_previous,
+    rolloverToNext: r.rollover_to_next,
+    totalSubscribersEntered: r.total_subscribers_entered,
+    publishedAt: r.published_at,
+  }));
+}
+
+export function dbSaveDraw(draw: Draw): void {
+  const db = getDb();
+  const now = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO draws (
+      id, name, draw_date, month_year, status, draw_logic, winning_numbers,
+      total_prize_pool, jackpot_pool, tier4_pool, tier3_pool, rollover_from_previous,
+      rollover_to_next, total_subscribers_entered, published_at, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      draw_date = excluded.draw_date,
+      month_year = excluded.month_year,
+      status = excluded.status,
+      draw_logic = excluded.draw_logic,
+      winning_numbers = excluded.winning_numbers,
+      total_prize_pool = excluded.total_prize_pool,
+      jackpot_pool = excluded.jackpot_pool,
+      tier4_pool = excluded.tier4_pool,
+      tier3_pool = excluded.tier3_pool,
+      rollover_from_previous = excluded.rollover_from_previous,
+      rollover_to_next = excluded.rollover_to_next,
+      total_subscribers_entered = excluded.total_subscribers_entered,
+      published_at = excluded.published_at
+  `).run(
+    draw.id,
+    draw.name,
+    draw.drawDate,
+    draw.monthYear,
+    draw.status,
+    draw.drawLogic,
+    JSON.stringify(draw.winningNumbers || []),
+    draw.totalPrizePool,
+    draw.jackpotPool,
+    draw.tier4Pool,
+    draw.tier3Pool,
+    draw.rolloverFromPrevious,
+    draw.rolloverToNext,
+    draw.totalSubscribersEntered,
+    draw.publishedAt || null,
+    now
+  );
+}
+
+export function dbGetAllWinners(): Winner[] {
+  const db = getDb();
+  const rows = db.prepare('SELECT * FROM winners ORDER BY created_at DESC').all() as any[];
+  return rows.map((r) => ({
+    id: r.id,
+    drawId: r.draw_id,
+    drawName: r.draw_name,
+    drawDate: r.draw_date,
+    userId: r.user_id,
+    userName: r.user_name,
+    userEmail: r.user_email,
+    matchType: r.match_type,
+    matchedNumbers: JSON.parse(r.matched_numbers || '[]'),
+    userScoresAtDraw: JSON.parse(r.user_scores_at_draw || '[]'),
+    prizeAmount: r.prize_amount,
+    verificationStatus: r.verification_status,
+    proofImageUrl: r.proof_image_url,
+    proofUploadedAt: r.proof_uploaded_at,
+    paymentStatus: r.payment_status,
+    paidAt: r.paid_at,
+    adminNotes: r.admin_notes,
+    createdAt: r.created_at,
+  }));
+}
+
+export function dbSaveWinners(winners: Winner[]): void {
+  const db = getDb();
+  const stmt = db.prepare(`
+    INSERT INTO winners (
+      id, draw_id, draw_name, draw_date, user_id, user_name, user_email,
+      match_type, matched_numbers, user_scores_at_draw, prize_amount,
+      verification_status, proof_image_url, proof_uploaded_at, payment_status,
+      paid_at, admin_notes, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      verification_status = excluded.verification_status,
+      proof_image_url = excluded.proof_image_url,
+      proof_uploaded_at = excluded.proof_uploaded_at,
+      payment_status = excluded.payment_status,
+      paid_at = excluded.paid_at,
+      admin_notes = excluded.admin_notes
+  `);
+
+  db.transaction(() => {
+    for (const w of winners) {
+      stmt.run(
+        w.id,
+        w.drawId,
+        w.drawName,
+        w.drawDate,
+        w.userId,
+        w.userName,
+        w.userEmail,
+        w.matchType,
+        JSON.stringify(w.matchedNumbers || []),
+        JSON.stringify(w.userScoresAtDraw || []),
+        w.prizeAmount,
+        w.verificationStatus || 'pending',
+        w.proofImageUrl || null,
+        w.proofUploadedAt || null,
+        w.paymentStatus || 'pending',
+        w.paidAt || null,
+        w.adminNotes || null,
+        w.createdAt || new Date().toISOString()
+      );
+    }
+  })();
+}
+
+// ----------------- METRICS & ANALYTICS -----------------
+
+export function dbGetLiveMetrics() {
+  const db = getDb();
+
+  const totalUsers = (db.prepare('SELECT COUNT(*) as count FROM users WHERE role = "subscriber"').get() as any)?.count || 0;
+  const activeSubscribers = (db.prepare('SELECT COUNT(*) as count FROM users WHERE role = "subscriber" AND subscription_status = "active"').get() as any)?.count || 0;
+  
+  const currentDraw = db.prepare('SELECT * FROM draws WHERE status = "scheduled" ORDER BY created_at DESC LIMIT 1').get() as any;
+  const jackpot = currentDraw ? currentDraw.jackpot_pool : 40700;
+
+  const totalCharityContributions = (db.prepare('SELECT SUM(total_raised) as sum FROM charities').get() as any)?.sum || 5000;
+  const pendingWinnersCount = (db.prepare('SELECT COUNT(*) as count FROM winners WHERE verification_status = "pending"').get() as any)?.count || 0;
+  const approvedUnpaidCount = (db.prepare('SELECT COUNT(*) as count FROM winners WHERE verification_status = "approved" AND payment_status != "paid"').get() as any)?.count || 0;
+
+  return {
+    totalUsers,
+    activeSubscribers,
+    jackpotPool: jackpot,
+    totalCharityContributions,
+    pendingWinnersCount,
+    approvedUnpaidCount,
+    mrr: activeSubscribers * 19,
+    arr: activeSubscribers * 19 * 12,
+  };
 }

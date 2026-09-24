@@ -36,13 +36,41 @@ export default function AdminOverviewPage() {
   const [analytics, setAnalytics] = useState<PlatformAnalytics>(getAnalytics());
   const [recentAudits, setRecentAudits] = useState<any[]>([]);
 
-  const loadData = () => {
+  const loadData = async () => {
     setCurrentUserState(getCurrentUser());
-    setUsersList(getUsers());
-    setDrawsList(getDraws());
-    setWinnersList(getWinners());
-    setAnalytics(getAnalytics());
-    setRecentAudits(getAuditLogs().slice(0, 5));
+    try {
+      const res = await fetch('/api/admin/metrics', { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success) {
+        setUsersList(data.users || []);
+        setDrawsList(data.draws || []);
+        setWinnersList(data.winners || []);
+        if (data.auditLogs) {
+          setRecentAudits(data.auditLogs.slice(0, 5));
+        }
+        if (data.metrics) {
+          setAnalytics({
+            totalUsers: data.metrics.totalUsers,
+            activeSubscribers: data.metrics.activeSubscribers,
+            totalPrizePool: 50000,
+            activeJackpot: data.metrics.jackpotPool,
+            totalCharityContributions: data.metrics.totalCharityContributions,
+            totalDrawsCompleted: (data.draws || []).filter((d: any) => d.status === 'published').length,
+            totalWinnersPaid: (data.winners || []).filter((w: any) => w.paymentStatus === 'paid').length,
+          });
+        }
+      } else {
+        setUsersList(getUsers());
+        setDrawsList(getDraws());
+        setWinnersList(getWinners());
+        setRecentAudits(getAuditLogs().slice(0, 5));
+      }
+    } catch {
+      setUsersList(getUsers());
+      setDrawsList(getDraws());
+      setWinnersList(getWinners());
+      setRecentAudits(getAuditLogs().slice(0, 5));
+    }
   };
 
   useEffect(() => {
