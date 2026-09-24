@@ -111,6 +111,22 @@
       "handicap": 15,
       "homeClub": "City Links Club",
       "createdAt": "2026-09-24T19:50:31.751Z"
+    },
+    {
+      "id": "user-1790282887138",
+      "name": "Mokshithp1234",
+      "email": "mokshithp1234@gmail.com",
+      "password_hash": "$2b$10$cbORG/xvZCFzqUWS7uZjuuAYp18uZm2cc5QIFsQxI6sRB.3wNlLUC",
+      "role": "subscriber",
+      "subscriptionStatus": "active",
+      "billingCycle": "yearly",
+      "subscriptionStartDate": "2026-09-24T20:48:07.138Z",
+      "subscriptionRenewalDate": "2027-09-24T20:49:00.902Z",
+      "charityId": "charity-1",
+      "charityContributionPct": 15,
+      "handicap": 15,
+      "homeClub": "City Links Club",
+      "createdAt": "2026-09-24T20:48:07.138Z"
     }
   ],
   "scores": [
@@ -334,6 +350,46 @@
   ],
   "winners": [],
   "activities": [
+    {
+      "id": "act-1790282940902-yx8z",
+      "user_id": "user-1790282887138",
+      "user_name": "Mokshithp1234",
+      "email": "mokshithp1234@gmail.com",
+      "action": "SUBSCRIBE",
+      "details": "Updated status to active",
+      "ip_address": "127.0.0.1",
+      "timestamp": "2026-09-24T20:49:00.902Z"
+    },
+    {
+      "id": "act-1790282898629-5fxk",
+      "user_id": "user-1790282887138",
+      "user_name": "Mokshithp1234",
+      "email": "mokshithp1234@gmail.com",
+      "action": "SUBSCRIBE",
+      "details": "Updated status to active",
+      "ip_address": "127.0.0.1",
+      "timestamp": "2026-09-24T20:48:18.629Z"
+    },
+    {
+      "id": "act-1790282887634-j8v7",
+      "user_id": "user-1790282887138",
+      "user_name": "Mokshithp1234",
+      "email": "mokshithp1234@gmail.com",
+      "action": "LOGIN",
+      "details": "User logged in to platform",
+      "ip_address": "::1",
+      "timestamp": "2026-09-24T20:48:07.634Z"
+    },
+    {
+      "id": "act-1790282887141-kgfo",
+      "user_id": "user-1790282887138",
+      "user_name": "Mokshithp1234",
+      "email": "mokshithp1234@gmail.com",
+      "action": "SIGNUP",
+      "details": "Registered with monthly plan",
+      "ip_address": "127.0.0.1",
+      "timestamp": "2026-09-24T20:48:07.141Z"
+    },
     {
       "id": "act-1790279456023-zn7v",
       "user_id": "user-1790279431751",
