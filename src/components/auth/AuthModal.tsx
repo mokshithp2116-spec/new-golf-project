@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { User } from '@/types';
+import { BillingCycle, User } from '@/types';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -12,6 +12,7 @@ import {
   User as UserIcon,
   Sparkles,
   Lock,
+  Crown,
 } from 'lucide-react';
 
 interface AuthModalProps {
@@ -19,7 +20,8 @@ interface AuthModalProps {
   onClose: () => void;
   initialMode?: 'login' | 'signup';
   onSuccess?: (user: User) => void;
-  onNeedSubscribe?: () => void;
+  onNeedSubscribe?: (cycle?: BillingCycle) => void;
+  requestedCycle?: BillingCycle;
 }
 
 export default function AuthModal({
@@ -28,6 +30,7 @@ export default function AuthModal({
   initialMode = 'login',
   onSuccess,
   onNeedSubscribe,
+  requestedCycle,
 }: AuthModalProps) {
   const router = useRouter();
   const { t } = useLanguage();
@@ -102,7 +105,7 @@ export default function AuthModal({
     }
 
     setIsSubmitting(true);
-    const result = await signup(cleanName, cleanEmail, cleanPassword);
+    const result = await signup(cleanName, cleanEmail, cleanPassword, requestedCycle || 'monthly');
     setIsSubmitting(false);
 
     if (!result.success || !result.user) {
@@ -114,7 +117,7 @@ export default function AuthModal({
     onClose();
 
     if (onNeedSubscribe) {
-      onNeedSubscribe();
+      onNeedSubscribe(requestedCycle);
     } else {
       router.push('/dashboard');
     }
@@ -122,7 +125,7 @@ export default function AuthModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-md bg-[#111622] border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl text-slate-200">
+      <div className="relative w-full max-w-md bg-[#090d16] border border-[#D4AF37]/30 rounded-3xl p-6 md:p-8 shadow-2xl text-slate-200">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -133,10 +136,10 @@ export default function AuthModal({
 
         {/* Brand Micro-header */}
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-6 h-6 rounded-lg bg-orange-500/20 text-orange-400 flex items-center justify-center font-bold text-xs border border-orange-500/30">
-            §
+          <div className="w-7 h-7 rounded-lg bg-[#D4AF37]/20 text-[#D4AF37] flex items-center justify-center font-bold text-xs border border-[#D4AF37]/30">
+            <Crown className="w-4 h-4" />
           </div>
-          <span className="text-xs uppercase tracking-widest text-slate-400 font-semibold">
+          <span className="text-xs uppercase tracking-widest text-[#F5E6AB] font-bold">
             digital.HEROES.
           </span>
         </div>
@@ -149,12 +152,12 @@ export default function AuthModal({
               setError(null);
             }}
             className={`pb-3 font-semibold transition relative flex-1 text-center ${
-              mode === 'login' ? 'text-orange-400' : 'text-slate-400 hover:text-slate-200'
+              mode === 'login' ? 'text-[#D4AF37]' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             {t('sign_in')}
             {mode === 'login' && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-full" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#D4AF37] rounded-full" />
             )}
           </button>
           <button
@@ -163,20 +166,20 @@ export default function AuthModal({
               setError(null);
             }}
             className={`pb-3 font-semibold transition relative flex-1 text-center ${
-              mode === 'signup' ? 'text-orange-400' : 'text-slate-400 hover:text-slate-200'
+              mode === 'signup' ? 'text-[#D4AF37]' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             {t('create_account')}
             {mode === 'signup' && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-full" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#D4AF37] rounded-full" />
             )}
           </button>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="mb-4 p-3.5 bg-rose-500/15 border border-rose-500/30 rounded-2xl text-rose-300 text-xs flex items-center gap-2 animate-shake">
-            <div className="w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0" />
+          <div className="mb-4 p-3.5 bg-red-500/15 border border-red-500/30 rounded-2xl text-red-300 text-xs flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
             <span>{error}</span>
           </div>
         )}
@@ -196,7 +199,7 @@ export default function AuthModal({
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={t('email_placeholder')}
                   required
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-white placeholder-slate-500 transition"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] text-white placeholder-slate-500 transition"
                 />
               </div>
             </div>
@@ -214,7 +217,7 @@ export default function AuthModal({
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={t('password_placeholder')}
                   required
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-white placeholder-slate-500 font-mono tracking-wider transition"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] text-white placeholder-slate-500 font-mono tracking-wider transition"
                 />
               </div>
             </div>
@@ -222,13 +225,13 @@ export default function AuthModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-500/25 active:scale-[0.99] flex items-center justify-center gap-2"
+              className="w-full py-3 btn-gold-primary text-slate-950 font-bold rounded-xl text-sm transition shadow-lg active:scale-[0.99] flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" />
               ) : (
                 <>
-                  <Lock className="w-4 h-4" />
+                  <Lock className="w-4 h-4 text-slate-950" />
                   {t('sign_in_btn')}
                 </>
               )}
@@ -249,7 +252,7 @@ export default function AuthModal({
                   onChange={(e) => setName(e.target.value)}
                   placeholder={t('name_placeholder')}
                   required
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 text-white placeholder-slate-500 transition"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-[#D4AF37] text-white placeholder-slate-500 transition"
                 />
               </div>
             </div>
@@ -266,7 +269,7 @@ export default function AuthModal({
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={t('email_placeholder')}
                   required
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 text-white placeholder-slate-500 transition"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-[#D4AF37] text-white placeholder-slate-500 transition"
                 />
               </div>
             </div>
@@ -274,7 +277,7 @@ export default function AuthModal({
             <div>
               <div className="flex justify-between items-center mb-1.5">
                 <label className="block text-xs font-semibold text-slate-300">{t('password_label')}</label>
-                <span className="text-[10px] text-orange-400 font-medium">{t('password_hint')}</span>
+                <span className="text-[10px] text-[#D4AF37] font-medium">{t('password_hint')}</span>
               </div>
               <div className="relative">
                 <Key className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
@@ -285,7 +288,7 @@ export default function AuthModal({
                   placeholder={t('password_placeholder')}
                   required
                   minLength={8}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 text-white placeholder-slate-500 font-mono tracking-wider transition"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-[#D4AF37] text-white placeholder-slate-500 font-mono tracking-wider transition"
                 />
               </div>
             </div>
@@ -293,13 +296,13 @@ export default function AuthModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-500/25 active:scale-[0.99] flex items-center justify-center gap-2"
+              className="w-full py-3 btn-gold-primary text-slate-950 font-bold rounded-xl text-sm transition shadow-lg active:scale-[0.99] flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" />
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4" />
+                  <Sparkles className="w-4 h-4 text-slate-950" />
                   {t('create_account_btn')}
                 </>
               )}

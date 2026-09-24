@@ -50,19 +50,24 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
 
   const loadScores = async () => {
     try {
-      const res = await fetch('/api/scores', { cache: 'no-store' });
+      const url = activeUserId ? `/api/scores?userId=${encodeURIComponent(activeUserId)}` : '/api/scores';
+      const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
-      if (data.success && data.scores) {
+      if (data.success && Array.isArray(data.scores) && data.scores.length > 0) {
         setScores(data.scores);
+      } else if (activeUserId) {
+        setScores(getUserGolfScores(activeUserId));
       }
     } catch {
-      // fallback
+      if (activeUserId) {
+        setScores(getUserGolfScores(activeUserId));
+      }
     }
   };
 
   useEffect(() => {
     loadScores();
-  }, []);
+  }, [activeUserId]);
 
   const handleAddScore = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,12 +94,17 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
           date: newDate,
           courseName,
           notes,
+          userId: activeUserId,
         }),
       });
       const data = await res.json();
       if (!data.success) {
         setError(data.message || 'Failed to add score.');
         return;
+      }
+
+      if (activeUserId) {
+        addGolfScore(activeUserId, scoreNum, newDate, courseName, notes);
       }
 
       setNewScore('');
@@ -107,6 +117,7 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
       );
 
       await loadScores();
+      window.dispatchEvent(new Event('dh-storage-update'));
       if (onScoresChanged) onScoresChanged();
       setTimeout(() => setSuccess(null), 5000);
     } catch {
@@ -143,6 +154,7 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
           date: editDateVal,
           courseName: editCourseVal,
           notes: editNotesVal,
+          userId: activeUserId,
         }),
       });
       const data = await res.json();
@@ -151,9 +163,12 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
         return;
       }
 
+      updateGolfScore(editingScoreId, scoreNum, editDateVal, editCourseVal, editNotesVal);
+
       setEditingScoreId(null);
       setSuccess('Round updated successfully.');
       await loadScores();
+      window.dispatchEvent(new Event('dh-storage-update'));
       if (onScoresChanged) onScoresChanged();
       setTimeout(() => setSuccess(null), 3500);
     } catch {
@@ -164,10 +179,15 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
   const handleDelete = async (scoreId: string) => {
     if (confirm('Are you sure you want to delete this score entry?')) {
       try {
-        const res = await fetch(`/api/scores?id=${scoreId}`, { method: 'DELETE' });
+        const url = activeUserId
+          ? `/api/scores?id=${scoreId}&userId=${encodeURIComponent(activeUserId)}`
+          : `/api/scores?id=${scoreId}`;
+        const res = await fetch(url, { method: 'DELETE' });
         const data = await res.json();
         if (data.success) {
+          deleteGolfScore(scoreId);
           await loadScores();
+          window.dispatchEvent(new Event('dh-storage-update'));
           if (onScoresChanged) onScoresChanged();
         } else {
           setError(data.message || 'Failed to delete score.');
@@ -177,6 +197,7 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
       }
     }
   };
+
 
   const averageScore =
     scores.length > 0
@@ -188,8 +209,8 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
     <div className="space-y-6">
       {/* Header Info & Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="glass-panel p-4 rounded-2xl flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center font-bold">
+        <div className="glass-panel p-4 rounded-2xl flex items-center gap-3.5 border border-[#D4AF37]/20">
+          <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/20 text-[#D4AF37] flex items-center justify-center font-bold font-serif text-base border border-[#D4AF37]/30">
             {scores.length}/5
           </div>
           <div>
@@ -200,9 +221,9 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
           </div>
         </div>
 
-        <div className="glass-panel p-4 rounded-2xl flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-            <TrendingUp className="w-5 h-5" />
+        <div className="glass-panel p-4 rounded-2xl flex items-center gap-3.5 border border-[#D4AF37]/20">
+          <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/20 text-[#D4AF37] flex items-center justify-center border border-[#D4AF37]/30">
+            <TrendingUp className="w-5 h-5 text-[#D4AF37]" />
           </div>
           <div>
             <div className="text-xs text-slate-400 font-medium">5-Round Average</div>
@@ -210,9 +231,9 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
           </div>
         </div>
 
-        <div className="glass-panel p-4 rounded-2xl flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-            <Trophy className="w-5 h-5" />
+        <div className="glass-panel p-4 rounded-2xl flex items-center gap-3.5 border border-[#D4AF37]/20">
+          <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/20 text-[#D4AF37] flex items-center justify-center border border-[#D4AF37]/30">
+            <Trophy className="w-5 h-5 text-[#D4AF37]" />
           </div>
           <div>
             <div className="text-xs text-slate-400 font-medium">Season Peak</div>
@@ -222,37 +243,37 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
       </div>
 
       {/* Rules banner (§ 05) */}
-      <div className="p-3.5 bg-slate-900/80 border border-white/10 rounded-2xl flex items-start gap-3 text-xs text-slate-300">
-        <Info className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
+      <div className="p-3.5 bg-[#05070A]/90 border border-[#D4AF37]/30 rounded-2xl flex items-start gap-3 text-xs text-slate-300">
+        <Info className="w-4 h-4 text-[#D4AF37] shrink-0 mt-0.5" />
         <div className="leading-relaxed">
-          <span className="text-white font-semibold">Rolling 5-Score Rule (§ 05):</span> Stableford scores range from <strong className="text-orange-300">1–45</strong>. Only the latest 5 scores are retained. Submitting a new round automatically replaces the oldest stored round. Only <strong className="text-orange-300">one score per date</strong> is permitted.
+          <span className="text-white font-semibold">Rolling 5-Score Rule (§ 05):</span> Stableford scores range from <strong className="text-[#F5E6AB]">1–45</strong>. Only the latest 5 scores are retained. Submitting a new round automatically replaces the oldest stored round. Only <strong className="text-[#F5E6AB]">one score per date</strong> is permitted.
         </div>
       </div>
 
       {/* Alert Messages */}
       {error && (
-        <div className="p-3 bg-rose-500/15 border border-rose-500/30 rounded-xl text-xs text-rose-300 flex items-center gap-2">
+        <div className="p-3 bg-rose-950/60 border border-rose-500/40 rounded-xl text-xs text-rose-300 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
           <span>{error}</span>
         </div>
       )}
 
       {success && (
-        <div className="p-3 bg-emerald-500/15 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+        <div className="p-3 bg-[#D4AF37]/15 border border-[#D4AF37]/40 rounded-xl text-xs text-[#F5E6AB] font-bold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 shrink-0 text-[#D4AF37]" />
           <span>{success}</span>
         </div>
       )}
 
       {/* Add New Score Form */}
       {!readOnly && (
-        <form onSubmit={handleAddScore} className="glass-panel p-5 rounded-2xl space-y-4">
+        <form onSubmit={handleAddScore} className="glass-panel p-5 rounded-2xl space-y-4 border border-[#D4AF37]/30">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-bold text-white flex items-center gap-2">
-              <Plus className="w-4 h-4 text-orange-400" />
+            <h4 className="text-sm font-bold text-white flex items-center gap-2 font-serif">
+              <Plus className="w-4 h-4 text-[#D4AF37]" />
               Log New Stableford Round
             </h4>
-            <span className="text-[11px] text-slate-400">Stableford 1–45</span>
+            <span className="text-[11px] text-slate-400 font-mono">Stableford 1–45</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
@@ -268,7 +289,7 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
                 placeholder="e.g. 38"
                 value={newScore}
                 onChange={(e) => setNewScore(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-xl text-sm font-semibold text-white focus:outline-none focus:border-orange-500"
+                className="w-full px-3 py-2 bg-[#070A12] border border-white/15 rounded-xl text-sm font-semibold text-white focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]"
               />
             </div>
 
@@ -281,7 +302,7 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
                 required
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-orange-500"
+                className="w-full px-3 py-2 bg-[#070A12] border border-white/15 rounded-xl text-sm text-white focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]"
               />
             </div>
 
@@ -294,16 +315,16 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
                 placeholder="e.g. Royal Melbourne"
                 value={courseName}
                 onChange={(e) => setCourseName(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-orange-500"
+                className="w-full px-3 py-2 bg-[#070A12] border border-white/15 rounded-xl text-sm text-white focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]"
               />
             </div>
 
             <div className="flex items-end">
               <button
                 type="submit"
-                className="w-full py-2.5 px-4 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl text-sm transition shadow-lg shadow-orange-500/20 flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 px-4 btn-gold-primary text-slate-950 font-bold rounded-xl text-xs transition shadow-lg flex items-center justify-center gap-1.5 uppercase tracking-wider"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4 stroke-[3]" />
                 Submit Round
               </button>
             </div>
@@ -313,13 +334,13 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
 
       {/* Edit Modal / Floating dialog */}
       {editingScoreId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
           <form
             onSubmit={handleSaveEdit}
-            className="w-full max-w-md bg-[#131824] border border-white/15 rounded-3xl p-6 shadow-2xl space-y-4"
+            className="w-full max-w-md bg-[#0B0E17] border border-[#D4AF37]/30 rounded-3xl p-6 shadow-2xl space-y-4 text-slate-200"
           >
-            <h4 className="text-base font-bold text-white flex items-center gap-2">
-              <Edit2 className="w-4 h-4 text-orange-400" />
+            <h4 className="text-base font-bold text-white flex items-center gap-2 font-serif">
+              <Edit2 className="w-4 h-4 text-[#D4AF37]" />
               Edit Existing Round Entry
             </h4>
             <div>
@@ -331,7 +352,7 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
                 required
                 value={editScoreVal}
                 onChange={(e) => setEditScoreVal(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-xl text-sm text-white"
+                className="w-full px-3 py-2 bg-[#070A12] border border-white/15 rounded-xl text-sm text-white"
               />
             </div>
             <div>
@@ -341,7 +362,7 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
                 required
                 value={editDateVal}
                 onChange={(e) => setEditDateVal(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-xl text-sm text-white"
+                className="w-full px-3 py-2 bg-[#070A12] border border-white/15 rounded-xl text-sm text-white"
               />
             </div>
             <div>
@@ -350,7 +371,7 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
                 type="text"
                 value={editCourseVal}
                 onChange={(e) => setEditCourseVal(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-xl text-sm text-white"
+                className="w-full px-3 py-2 bg-[#070A12] border border-white/15 rounded-xl text-sm text-white"
               />
             </div>
             <div>
@@ -359,7 +380,7 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
                 type="text"
                 value={editNotesVal}
                 onChange={(e) => setEditNotesVal(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-xl text-sm text-white"
+                className="w-full px-3 py-2 bg-[#070A12] border border-white/15 rounded-xl text-sm text-white"
               />
             </div>
 
@@ -367,13 +388,13 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
               <button
                 type="button"
                 onClick={() => setEditingScoreId(null)}
-                className="flex-1 py-2 bg-white/10 hover:bg-white/15 text-slate-300 font-semibold rounded-xl text-xs transition"
+                className="flex-1 py-2.5 bg-white/10 hover:bg-white/15 text-slate-300 font-semibold rounded-xl text-xs transition"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl text-xs transition"
+                className="flex-1 py-2.5 btn-gold-primary text-slate-950 font-bold rounded-xl text-xs transition uppercase tracking-wider"
               >
                 Save Changes
               </button>
@@ -386,11 +407,11 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
       <div className="space-y-3">
         <div className="flex justify-between items-center text-xs text-slate-400 font-semibold px-1">
           <span>Active 5-Round Scorecard (Most Recent First)</span>
-          <span>{scores.length} of 5 slots filled</span>
+          <span className="font-mono text-[#D4AF37]">{scores.length} of 5 slots filled</span>
         </div>
 
         {scores.length === 0 ? (
-          <div className="glass-panel p-8 rounded-2xl text-center text-slate-400 text-xs">
+          <div className="glass-panel p-8 rounded-2xl text-center text-slate-400 text-xs border border-white/10">
             No rounds recorded yet. Log your first Stableford round above to start qualifying for the monthly draw!
           </div>
         ) : (
@@ -398,21 +419,21 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
             {scores.map((sc, idx) => (
               <div
                 key={sc.id}
-                className="glass-panel p-4 rounded-2xl flex items-center justify-between transition hover:border-white/20"
+                className="glass-panel p-4 rounded-2xl flex items-center justify-between transition hover:border-[#D4AF37]/40 border border-[#D4AF37]/20"
               >
                 <div className="flex items-center gap-4">
                   {/* Score ball */}
-                  <div className="ball-number shrink-0 text-orange-400 border-orange-500/30">
+                  <div className="w-10 h-10 rounded-2xl bg-[#D4AF37]/20 text-[#F5E6AB] border border-[#D4AF37]/40 flex items-center justify-center font-bold font-mono text-base shrink-0">
                     {sc.score}
                   </div>
 
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-white">
+                      <span className="text-sm font-bold text-white font-serif">
                         {sc.courseName || 'Official Round'}
                       </span>
                       {idx === 0 && (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
+                        <span className="px-2 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#F5E6AB] border border-[#D4AF37]/40 text-[10px] font-bold uppercase tracking-wider">
                           Latest
                         </span>
                       )}
@@ -422,12 +443,12 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
+                    <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5 font-mono">
                       <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                        <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" />
                         {sc.date}
                       </span>
-                      {sc.notes && <span className="text-slate-500 italic">“{sc.notes}”</span>}
+                      {sc.notes && <span className="text-slate-400 italic font-sans">“{sc.notes}”</span>}
                     </div>
                   </div>
                 </div>
@@ -439,7 +460,7 @@ export default function ScoreManager({ userId, onScoresChanged, readOnly = false
                       className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition"
                       title="Edit this round"
                     >
-                      <Edit2 className="w-4 h-4" />
+                      <Edit2 className="w-4 h-4 text-[#D4AF37]" />
                     </button>
                     <button
                       onClick={() => handleDelete(sc.id)}

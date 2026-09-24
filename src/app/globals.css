@@ -1,110 +1,103 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @layer base {
   :root, html.dark {
-    --bg-primary: #050c09;
-    --bg-secondary: #0a1914;
-    --bg-card: rgba(12, 31, 24, 0.75);
-    --border-subtle: rgba(52, 211, 153, 0.15);
-    --accent-emerald: #10b981;
-    --accent-gold: #f59e0b;
-    --accent-terracotta: #f97316;
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
+    --bg-primary: #05070A;
+    --bg-secondary: #0A0E17;
+    --bg-card: rgba(15, 20, 30, 0.85);
+    --border-subtle: rgba(212, 175, 55, 0.22);
+    --accent-gold: #D4AF37;
+    --accent-gold-light: #F3E5AB;
+    --accent-gold-dark: #A38025;
+    --text-primary: #F8FAFC;
+    --text-secondary: #CBD5E1;
+    --text-muted: #94A3B8;
+    --font-serif: 'Playfair Display', Georgia, serif;
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
   html.light {
-    --bg-primary: #f4f7f5;
-    --bg-secondary: #ffffff;
-    --bg-card: #ffffff;
-    --border-subtle: #cbd5e1;
-    --accent-emerald: #059669;
-    --accent-gold: #d97706;
-    --accent-terracotta: #ea580c;
-    --text-primary: #061812;
+    --bg-primary: #F8FAFC;
+    --bg-secondary: #FFFFFF;
+    --bg-card: rgba(255, 255, 255, 0.95);
+    --border-subtle: rgba(197, 160, 89, 0.35);
+    --accent-gold: #C5A059;
+    --accent-gold-light: #8C6D28;
+    --accent-gold-dark: #664E19;
+    --text-primary: #0F172A;
     --text-secondary: #334155;
-    --text-muted: #64748b;
+    --text-muted: #64748B;
   }
 
   body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-family: var(--font-sans);
     min-height: 100vh;
     overflow-x: hidden;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition: background-color 0.4s ease, color 0.4s ease;
+  }
+
+  h1, h2, h3, .font-luxury-serif {
+    font-family: var(--font-serif);
   }
 }
 
-/* Premium Golf Atmosphere Background */
+/* Premium Obsidian & Gold Golf Atmosphere */
 .bg-golf-atmosphere {
   background: 
-    radial-gradient(circle at 15% 15%, rgba(16, 185, 129, 0.12) 0%, transparent 45%),
-    radial-gradient(circle at 85% 25%, rgba(245, 158, 11, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 50% 85%, rgba(5, 150, 105, 0.1) 0%, transparent 50%),
-    #050c09;
+    radial-gradient(circle at 20% 15%, rgba(212, 175, 55, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 80% 30%, rgba(245, 230, 171, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 50% 85%, rgba(197, 160, 89, 0.06) 0%, transparent 50%),
+    #05070A;
 }
 
-/* Glassmorphism Luxury Panel */
+/* Glassmorphism Luxury Panel with Champagne Gold Border */
 .glass-panel {
-  background: rgba(10, 25, 20, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(52, 211, 153, 0.15);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Light Theme Overrides */
-html.light body {
-  background-color: #f8fafc !important;
-  color: #0f172a !important;
-}
-
-html.light header {
-  background-color: rgba(255, 255, 255, 0.92) !important;
-  border-bottom-color: rgba(0, 0, 0, 0.1) !important;
-}
-
-html.light header span, html.light header a {
-  color: #0f172a;
-}
-
-html.light .glass-panel {
-  background: rgba(255, 255, 255, 0.92) !important;
-  border-color: rgba(16, 185, 129, 0.25) !important;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08) !important;
-  color: #0f172a !important;
+  background: rgba(12, 16, 26, 0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  box-shadow: 0 12px 40px -10px rgba(0, 0, 0, 0.65), 0 0 20px 0 rgba(212, 175, 55, 0.04);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-panel-hover:hover {
-  background: rgba(14, 36, 29, 0.85);
-  border-color: rgba(52, 211, 153, 0.35);
-  box-shadow: 0 12px 40px 0 rgba(16, 185, 129, 0.15);
-  transform: translateY(-2px);
+  background: rgba(18, 24, 38, 0.9);
+  border-color: rgba(212, 175, 55, 0.45);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.8), 0 0 30px 0 rgba(212, 175, 55, 0.12);
+  transform: translateY(-3px);
 }
 
-/* Gradient accents */
-.text-gradient-hero {
-  background: linear-gradient(135deg, #ffffff 30%, #34d399 70%, #f59e0b 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
+/* Champagne Gold Metallic Gradients (Zero Green / Zero Orange) */
 .text-gradient-gold {
-  background: linear-gradient(135deg, #fef08a 0%, #f59e0b 60%, #b45309 100%);
+  background: linear-gradient(135deg, #FFFFFF 0%, #F5E6AB 40%, #D4AF37 75%, #A38025 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.text-gradient-impact {
-  background: linear-gradient(135deg, #a7f3d0 0%, #34d399 60%, #059669 100%);
+.text-gradient-champagne {
+  background: linear-gradient(135deg, #FFFFFF 20%, #F3E5AB 60%, #C5A059 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-/* Lottery ball styles */
+.btn-gold-primary {
+  background: linear-gradient(135deg, #D4AF37 0%, #F5E6AB 50%, #C5A059 100%);
+  color: #05070A;
+  font-weight: 800;
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.25);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-gold-primary:hover {
+  background: linear-gradient(135deg, #F5E6AB 0%, #D4AF37 60%, #B89028 100%);
+  box-shadow: 0 10px 28px rgba(212, 175, 55, 0.4);
+  transform: translateY(-1.5px);
+}
+
+/* 3D Metallic Lottery Balls */
 .ball-number {
   display: inline-flex;
   align-items: center;
@@ -114,49 +107,65 @@ html.light .glass-panel {
   border-radius: 9999px;
   font-weight: 800;
   font-size: 1.125rem;
-  color: #ffffff;
-  background: radial-gradient(circle at 35% 35%, #1e3a2e, #091a13);
-  border: 1px solid rgba(52, 211, 153, 0.3);
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.15), 0 4px 10px rgba(0, 0, 0, 0.5);
+  color: #F8FAFC;
+  background: radial-gradient(circle at 35% 35%, #242C3E, #0D111A);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2), 0 4px 12px rgba(0, 0, 0, 0.6);
 }
 
 .ball-winning {
-  background: radial-gradient(circle at 35% 35%, #f59e0b, #b45309);
-  border-color: #fef08a;
-  box-shadow: 0 0 18px rgba(245, 158, 11, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.4);
-  color: #050c09;
+  background: radial-gradient(circle at 35% 35%, #F5E6AB, #D4AF37, #9A7B38);
+  border-color: #FFF3C4;
+  box-shadow: 0 0 24px rgba(212, 175, 55, 0.5), inset 0 2px 5px rgba(255, 255, 255, 0.6);
+  color: #05070A;
 }
 
 .ball-matched {
-  background: radial-gradient(circle at 35% 35%, #10b981, #064e3b);
-  border-color: #6ee7b7;
-  box-shadow: 0 0 18px rgba(16, 185, 129, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  background: radial-gradient(circle at 35% 35%, #E5C158, #9A7B38);
+  border-color: #F5E6AB;
+  box-shadow: 0 0 20px rgba(229, 193, 88, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.5);
+  color: #05070A;
 }
 
-/* 5-Score Round Progress Indicators */
-.round-indicator-active {
-  background: linear-gradient(135deg, #10b981, #059669);
-  border: 2px solid #6ee7b7;
-  color: #ffffff;
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
-}
-
-.round-indicator-pending {
-  background: rgba(255, 255, 255, 0.05);
-  border: 2px dashed rgba(255, 255, 255, 0.2);
-  color: #64748b;
-}
-
-/* Pulse animation for live draw alerts */
-@keyframes pulseGlow {
+/* Gold Pulse Glow */
+@keyframes goldPulseGlow {
   0%, 100% {
-    box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
   }
   50% {
-    box-shadow: 0 0 30px rgba(16, 185, 129, 0.5);
+    box-shadow: 0 0 32px rgba(212, 175, 55, 0.45);
   }
 }
 
-.pulse-glow {
-  animation: pulseGlow 3s infinite ease-in-out;
+.pulse-glow-gold {
+  animation: goldPulseGlow 3s infinite ease-in-out;
+}
+
+/* Light Theme Overrides */
+html.light body {
+  background-color: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+html.light header {
+  background-color: rgba(255, 255, 255, 0.94) !important;
+  border-bottom-color: rgba(197, 160, 89, 0.25) !important;
+}
+
+html.light header span, html.light header a {
+  color: #0F172A;
+}
+
+html.light .glass-panel {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(197, 160, 89, 0.3) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06) !important;
+  color: #0F172A !important;
+}
+
+html.light .text-gradient-gold,
+html.light .text-gradient-champagne {
+  background: linear-gradient(135deg, #0F172A 0%, #8C6D28 60%, #664E19 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }

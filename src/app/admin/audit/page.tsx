@@ -42,20 +42,23 @@ export default function AdminAuditLogPage() {
     return () => window.removeEventListener('dh-storage-update', loadData);
   }, []);
 
-  const filteredLogs = logs.filter((log) => {
+  const filteredLogs = logs.filter((log: any) => {
+    const adminNameStr = log.adminName || log.admin_name || 'Admin';
+    const actionStr = log.action || '';
+    const entityIdStr = log.entityId || log.entity_id || '';
     const matchesSearch =
-      log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.adminName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.entityId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (log.oldValue && log.oldValue.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (log.newValue && log.newValue.toLowerCase().includes(searchTerm.toLowerCase()));
+      actionStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      adminNameStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      entityIdStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (log.oldValue && String(log.oldValue).toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (log.newValue && String(log.newValue).toLowerCase().includes(searchTerm.toLowerCase()));
 
     if (selectedEntity === 'all') return matchesSearch;
-    return matchesSearch && log.entity.toUpperCase() === selectedEntity.toUpperCase();
+    return matchesSearch && String(log.entity || '').toUpperCase() === selectedEntity.toUpperCase();
   });
 
   const getEntityIcon = (entity: string) => {
-    switch (entity.toUpperCase()) {
+    switch ((entity || '').toUpperCase()) {
       case 'AUTH':
         return <KeyRound className="w-3.5 h-3.5 text-amber-400" />;
       case 'DRAW':
@@ -152,18 +155,20 @@ export default function AdminAuditLogPage() {
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="px-5 py-4 font-mono text-[11px] text-slate-400 whitespace-nowrap">
-                      {new Date(log.timestamp).toLocaleString()}
-                    </td>
+                filteredLogs.map((log: any) => {
+                  const adminName = log.adminName || log.admin_name || 'Admin';
+                  return (
+                    <tr key={log.id} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="px-5 py-4 font-mono text-[11px] text-slate-400 whitespace-nowrap">
+                        {new Date(log.timestamp || Date.now()).toLocaleString()}
+                      </td>
 
-                    <td className="px-5 py-4 font-bold text-white flex items-center space-x-2">
-                      <div className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] text-amber-400 font-black">
-                        {log.adminName.charAt(0)}
-                      </div>
-                      <span>{log.adminName}</span>
-                    </td>
+                      <td className="px-5 py-4 font-bold text-white flex items-center space-x-2">
+                        <div className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] text-amber-400 font-black">
+                          {adminName.charAt(0)}
+                        </div>
+                        <span>{adminName}</span>
+                      </td>
 
                     <td className="px-5 py-4">
                       <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-950 border border-slate-800 text-slate-300 uppercase">
@@ -187,7 +192,8 @@ export default function AdminAuditLogPage() {
                       )}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

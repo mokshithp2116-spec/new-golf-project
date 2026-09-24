@@ -20,11 +20,13 @@ import {
   X,
 } from 'lucide-react';
 
+import { getDraws, getWinners } from '@/lib/storage';
+
 export default function DrawsPage() {
   const { user } = useAuth();
-  const [draws, setDraws] = useState<Draw[]>([]);
-  const [allWinners, setAllWinners] = useState<Winner[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [draws, setDraws] = useState<Draw[]>(() => (typeof window !== 'undefined' ? getDraws() : []));
+  const [allWinners, setAllWinners] = useState<Winner[]>(() => (typeof window !== 'undefined' ? getWinners() : []));
+  const [isLoading, setIsLoading] = useState(false);
 
   // Selected draw detail modal
   const [selectedDrawModal, setSelectedDrawModal] = useState<Draw | null>(null);

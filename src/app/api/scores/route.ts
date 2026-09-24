@@ -1,33 +1,29 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
-import { getDb, dbGetUserById } from '@/lib/db';
+import {
+  dbGetUserScores,
+  dbAddGolfScore,
+  dbUpdateGolfScore,
+  dbDeleteGolfScore,
+  dbEnsureUserExists,
+  dbRecordActivity,
+} from '@/lib/db';
 import { GolfScore } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
 // GET /api/scores - Retrieve latest 5 rolling golf scores for the authenticated user
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getSessionUser();
-    if (!session || !session.id) {
+    const { searchParams } = new URL(request.url);
+    const targetUserId = session?.id || searchParams.get('userId');
+
+    if (!targetUserId) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const db = getDb();
-    const rows = db
-      .prepare('SELECT * FROM golf_scores WHERE user_id = ? ORDER BY score_date DESC LIMIT 5')
-      .all(session.id) as any[];
-
-    const scores: GolfScore[] = rows.map((r) => ({
-      id: r.id,
-      userId: r.user_id,
-      score: r.score,
-      date: r.score_date,
-      courseName: r.course_name,
-      notes: r.notes,
-      createdAt: r.created_at,
-    }));
-
+    const scores = dbGetUserScores(targetUserId);
     return NextResponse.json({ success: true, scores });
   } catch (err: any) {
     console.error('[GET /api/scores Error]:', err);
@@ -39,15 +35,12 @@ export async function GET() {
 function normalizeDate(rawDate: string): string {
   if (!rawDate) return new Date().toISOString().split('T')[0];
   const str = rawDate.trim();
-  // Handle DD/MM/YYYY
   if (str.includes('/')) {
     const parts = str.split('/');
     if (parts.length === 3) {
       if (parts[2].length === 4) {
-        // DD/MM/YYYY -> YYYY-MM-DD
         return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
       } else if (parts[0].length === 4) {
-        // YYYY/MM/DD -> YYYY-MM-DD
         return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
       }
     }
@@ -55,18 +48,19 @@ function normalizeDate(rawDate: string): string {
   return str.split('T')[0];
 }
 
-// POST /api/scores - Add new golf score for authenticated user (strictly server-enforced userId)
+// POST /api/scores - Add new golf score for user
 export async function POST(request: Request) {
   try {
     const session = await getSessionUser();
-    if (!session || !session.id) {
+    const body = await request.json();
+    const { score, date, courseName, notes, userId } = body;
+    const targetUserId = session?.id || userId;
+
+    if (!targetUserId) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { score, date, courseName, notes } = body;
     const scoreNum = parseInt(score, 10);
-
     if (isNaN(scoreNum) || scoreNum < 1 || scoreNum > 45) {
       return NextResponse.json(
         { success: false, message: 'Stableford score must be an integer between 1 and 45.' },
@@ -82,69 +76,35 @@ export async function POST(request: Request) {
     }
 
     const cleanDate = normalizeDate(date);
-    const { getDb, dbEnsureUserExists, dbRecordActivity } = await import('@/lib/db');
-    
-    // Ensure session user exists in SQLite DB to satisfy foreign key constraint
-    dbEnsureUserExists({
-      id: session.id,
-      email: session.email,
-      name: session.name,
-    });
 
-    const db = getDb();
-
-    // Check duplicate date for THIS authenticated user
-    const existingScore = db
-      .prepare('SELECT id FROM golf_scores WHERE user_id = ? AND score_date = ?')
-      .get(session.id, cleanDate) as any;
-
-    const now = new Date().toISOString();
-    let finalId = existingScore ? existingScore.id : `sc-${Date.now()}`;
-
-    if (existingScore) {
-      // Upsert/Update score if already exists for date
-      db.prepare(`
-        UPDATE golf_scores SET
-          score = ?,
-          course_name = ?,
-          notes = ?
-        WHERE id = ? AND user_id = ?
-      `).run(scoreNum, courseName || 'Local Course', notes || '', finalId, session.id);
-    } else {
-      // Insert new score
-      db.prepare(`
-        INSERT INTO golf_scores (id, user_id, score, score_date, course_name, notes, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(finalId, session.id, scoreNum, cleanDate, courseName || 'Local Course', notes || '', now);
+    if (session?.id) {
+      dbEnsureUserExists({
+        id: session.id,
+        email: session.email,
+        name: session.name,
+      });
     }
 
-    // Evict oldest score if total exceeds 5 for this user
-    const userScores = db
-      .prepare('SELECT id FROM golf_scores WHERE user_id = ? ORDER BY score_date DESC')
-      .all(session.id) as any[];
+    const res = dbAddGolfScore(targetUserId, scoreNum, cleanDate, courseName, notes);
 
-    if (userScores.length > 5) {
-      const idsToKeep = userScores.slice(0, 5).map((s) => s.id);
-      db.prepare(`DELETE FROM golf_scores WHERE user_id = ? AND id NOT IN (${idsToKeep.map(() => '?').join(',')})`)
-        .run(session.id, ...idsToKeep);
+    if (!res.success) {
+      return NextResponse.json({ success: false, message: res.message || 'Error saving score' }, { status: 400 });
     }
 
     try {
-      dbRecordActivity(session.id, session.name || 'User', session.email, 'SUBMIT_SCORE', `Logged Stableford score ${scoreNum} for ${cleanDate}`);
+      dbRecordActivity(
+        targetUserId,
+        session?.name || 'User',
+        session?.email || '',
+        'SUBMIT_SCORE',
+        `Logged Stableford score ${scoreNum} for ${cleanDate}`
+      );
     } catch {}
 
     return NextResponse.json({
       success: true,
       message: 'Score saved successfully.',
-      score: {
-        id: finalId,
-        userId: session.id,
-        score: scoreNum,
-        date: cleanDate,
-        courseName: courseName || 'Local Course',
-        notes: notes || '',
-        createdAt: now,
-      },
+      score: res.score,
     });
   } catch (err: any) {
     console.error('[POST /api/scores Error]:', err);
@@ -152,18 +112,19 @@ export async function POST(request: Request) {
   }
 }
 
-// PUT /api/scores - Update score for authenticated user (strictly verifies ownership)
+// PUT /api/scores - Update score for user
 export async function PUT(request: Request) {
   try {
     const session = await getSessionUser();
-    if (!session || !session.id) {
+    const body = await request.json();
+    const { scoreId, score, date, courseName, notes, userId } = body;
+    const targetUserId = session?.id || userId;
+
+    if (!targetUserId) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { scoreId, score, date, courseName, notes } = body;
     const scoreNum = parseInt(score, 10);
-
     if (!scoreId) {
       return NextResponse.json({ success: false, message: 'Score ID is required.' }, { status: 400 });
     }
@@ -175,37 +136,12 @@ export async function PUT(request: Request) {
       );
     }
 
-    const db = getDb();
+    const cleanDate = normalizeDate(date);
+    const res = dbUpdateGolfScore(scoreId, targetUserId, scoreNum, cleanDate, courseName, notes);
 
-    // Verify ownership: score MUST belong to session.id
-    const target = db.prepare('SELECT * FROM golf_scores WHERE id = ? AND user_id = ?').get(scoreId, session.id);
-    if (!target) {
-      return NextResponse.json(
-        { success: false, message: 'Score record not found or access denied.' },
-        { status: 403 }
-      );
+    if (!res.success) {
+      return NextResponse.json({ success: false, message: res.message || 'Update failed.' }, { status: 400 });
     }
-
-    // Check duplicate date on update
-    const duplicate = db
-      .prepare('SELECT id FROM golf_scores WHERE user_id = ? AND id != ? AND score_date = ?')
-      .get(session.id, scoreId, date);
-
-    if (duplicate) {
-      return NextResponse.json(
-        { success: false, message: `Another score for date ${date} already exists.` },
-        { status: 409 }
-      );
-    }
-
-    db.prepare(`
-      UPDATE golf_scores SET
-        score = ?,
-        score_date = ?,
-        course_name = ?,
-        notes = ?
-      WHERE id = ? AND user_id = ?
-    `).run(scoreNum, date, courseName ?? '', notes ?? '', scoreId, session.id);
 
     return NextResponse.json({ success: true, message: 'Score updated successfully.' });
   } catch (err: any) {
@@ -214,29 +150,26 @@ export async function PUT(request: Request) {
   }
 }
 
-// DELETE /api/scores - Delete score for authenticated user (strictly verifies ownership)
+// DELETE /api/scores - Delete score for user
 export async function DELETE(request: Request) {
   try {
     const session = await getSessionUser();
-    if (!session || !session.id) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const scoreId = searchParams.get('id');
+    const targetUserId = session?.id || searchParams.get('userId');
+
+    if (!targetUserId) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
 
     if (!scoreId) {
       return NextResponse.json({ success: false, message: 'Score ID is required.' }, { status: 400 });
     }
 
-    const db = getDb();
-    const res = db.prepare('DELETE FROM golf_scores WHERE id = ? AND user_id = ?').run(scoreId, session.id);
+    const res = dbDeleteGolfScore(scoreId, targetUserId);
 
-    if (res.changes === 0) {
-      return NextResponse.json(
-        { success: false, message: 'Score not found or unauthorized.' },
-        { status: 403 }
-      );
+    if (!res.success) {
+      return NextResponse.json({ success: false, message: res.message || 'Score not found or unauthorized.' }, { status: 403 });
     }
 
     return NextResponse.json({ success: true, message: 'Score deleted successfully.' });
@@ -245,3 +178,4 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, message: 'Server error deleting score' }, { status: 500 });
   }
 }
+

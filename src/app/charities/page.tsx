@@ -20,7 +20,9 @@ import {
 } from 'lucide-react';
 
 export default function CharitiesPage() {
-  const [charities, setCharities] = useState<Charity[]>([]);
+  const [charities, setCharities] = useState<Charity[]>(() =>
+    typeof window !== 'undefined' ? getCharities() : []
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedCharityForModal, setSelectedCharityForModal] = useState<Charity | null>(null);

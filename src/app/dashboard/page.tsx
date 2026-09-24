@@ -43,6 +43,7 @@ import {
   Award,
   Circle,
   RefreshCw,
+  Crown,
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -65,7 +66,7 @@ export default function DashboardPage() {
   const [pledgePct, setPledgePct] = useState(15);
   const [selectedCharityId, setSelectedCharityId] = useState('');
 
-  const loadData = () => {
+  const loadData = async () => {
     const currentUser = authUser || getCurrentUser();
     if (authUser) {
       updateUser(authUser);
@@ -80,8 +81,18 @@ export default function DashboardPage() {
       setPledgePct(currentUser.charityContributionPct || 15);
       setSelectedCharityId(currentUser.charityId || allCharities[0]?.id || '');
 
-      const userScores = getUserGolfScores(currentUser.id);
-      setScores(userScores);
+      try {
+        const url = `/api/scores?userId=${encodeURIComponent(currentUser.id)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.scores) && data.scores.length > 0) {
+          setScores(data.scores);
+        } else {
+          setScores(getUserGolfScores(currentUser.id));
+        }
+      } catch {
+        setScores(getUserGolfScores(currentUser.id));
+      }
 
       const allWinners = getWinners();
       const myWinners = allWinners.filter((w) => w.userId === currentUser.id);
@@ -137,8 +148,8 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-24 flex flex-col items-center justify-center min-h-[65vh]">
-        <div className="w-12 h-12 border-4 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin mb-4" />
-        <p className="text-slate-400 text-xs font-semibold tracking-wider uppercase">Loading Golf Command Center...</p>
+        <div className="w-12 h-12 border-4 border-[#D4AF37]/30 border-t-[#D4AF37] rounded-full animate-spin mb-4" />
+        <p className="text-slate-400 text-xs font-semibold tracking-widest uppercase">Loading Command Center...</p>
       </div>
     );
   }
@@ -146,34 +157,34 @@ export default function DashboardPage() {
   // Unauthenticated Welcome State
   if (!user) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-12 space-y-12 bg-golf-atmosphere min-h-screen">
-        <div className="glass-panel p-8 sm:p-12 rounded-3xl border border-emerald-500/20 text-center space-y-6 relative overflow-hidden">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-amber-500 text-slate-950 flex items-center justify-center mx-auto shadow-2xl shadow-emerald-500/20 font-black text-2xl">
+      <div className="max-w-6xl mx-auto px-4 py-16 space-y-12 min-h-screen text-slate-100">
+        <div className="glass-panel p-8 sm:p-14 rounded-3xl border border-[#D4AF37]/30 text-center space-y-6 relative overflow-hidden bg-gradient-to-br from-[#0c1017] via-[#05070A] to-[#0a0d14]">
+          <div className="w-16 h-16 rounded-2xl btn-gold-primary text-slate-950 flex items-center justify-center mx-auto shadow-2xl font-serif text-3xl font-bold">
             §
           </div>
 
-          <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight">
-            Digital Heroes Golfer Command Center
+          <h1 className="text-4xl sm:text-6xl font-serif font-bold text-white tracking-tight">
+            Golfer Command Center
           </h1>
 
-          <p className="text-xs sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
-            Log your rolling 5 Stableford golf scores, enter monthly championship jackpot draws, and automatically support verified youth sports charities.
+          <p className="text-sm sm:text-base text-slate-300 font-light max-w-2xl mx-auto leading-relaxed">
+            Log your rolling 5 Stableford golf scores, enter monthly championship jackpot draws, and automatically support verified partner charities.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
             <button
               onClick={() => setAuthModalOpen(true)}
-              className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black rounded-xl text-xs transition shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-8 py-3.5 btn-gold-primary text-slate-950 font-bold rounded-xl text-xs transition shadow-xl flex items-center justify-center gap-2"
             >
-              <LogIn className="w-4 h-4" />
+              <LogIn className="w-4 h-4 text-slate-950" />
               <span>Sign In to Account</span>
             </button>
 
             <button
               onClick={() => setSubModalOpen(true)}
-              className="w-full sm:w-auto px-8 py-3.5 bg-white/10 hover:bg-white/15 border border-white/15 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-8 py-3.5 bg-white/10 hover:bg-white/15 border border-white/15 text-white font-semibold rounded-xl text-xs transition flex items-center justify-center gap-2"
             >
-              <Sparkles className="w-4 h-4 text-amber-400" />
+              <Crown className="w-4 h-4 text-[#D4AF37]" />
               <span>Subscribe & Start Playing</span>
             </button>
           </div>
@@ -200,34 +211,32 @@ export default function DashboardPage() {
   const totalWon = userWinners.reduce((sum, w) => sum + w.prizeAmount, 0);
 
   return (
-    <div className="min-h-screen bg-golf-atmosphere py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div className="min-h-screen py-10 text-slate-100 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-9">
         
-        {/* 1. PREMIUM DASHBOARD HEADER / HERO BANNER (Item #4) */}
-        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-emerald-500/25 relative overflow-hidden bg-gradient-to-r from-[#0c241b]/90 via-[#0a1b14]/90 to-[#07130e]/90">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-
+        {/* 1. PREMIUM DASHBOARD HEADER / HERO BANNER */}
+        <div className="glass-panel p-6 sm:p-10 rounded-3xl border border-[#D4AF37]/30 relative overflow-hidden bg-gradient-to-r from-[#0d121c] via-[#05070A] to-[#0a0e16]">
           <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold uppercase tracking-wider">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#121824] border border-[#D4AF37]/30 text-[#F5E6AB] text-xs font-semibold uppercase tracking-wider">
+                <Crown className="w-3.5 h-3.5 text-[#D4AF37]" />
                 VERIFIED GOLFER MEMBER
               </div>
 
               <div className="space-y-1">
-                <span className="text-xs text-slate-400 font-extrabold uppercase tracking-widest block">WELCOME BACK</span>
-                <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
-                  {user.name.toUpperCase()}
+                <span className="text-[11px] text-slate-400 font-bold uppercase tracking-widest block">WELCOME BACK</span>
+                <h1 className="text-3xl sm:text-5xl font-serif font-bold text-white tracking-tight">
+                  {user.name}
                 </h1>
               </div>
 
-              <div className="flex items-center gap-3 text-xs text-slate-300 font-semibold flex-wrap">
-                <span className="flex items-center gap-1.5 text-emerald-400">
-                  <Compass className="w-4 h-4" /> {user.homeClub || 'Royal Melbourne Golf Club'}
+              <div className="flex items-center gap-3 text-xs text-slate-300 font-light flex-wrap">
+                <span className="flex items-center gap-1.5 text-[#F5E6AB]">
+                  <Compass className="w-4 h-4 text-[#D4AF37]" /> {user.homeClub || 'Royal Melbourne Golf Club'}
                 </span>
-                <span>·</span>
-                <span className="text-amber-300 font-mono">Handicap: {user.handicap || 14.5}</span>
-                <span>·</span>
+                <span className="text-white/20">·</span>
+                <span className="text-slate-300 font-mono">Handicap: {user.handicap || 14.5}</span>
+                <span className="text-white/20">·</span>
                 <span className="text-slate-400">{user.email}</span>
               </div>
             </div>
@@ -235,84 +244,195 @@ export default function DashboardPage() {
             <div className="flex items-center gap-3 self-start lg:self-center">
               <button
                 onClick={() => setSubModalOpen(true)}
-                className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black rounded-2xl text-xs transition shadow-xl shadow-emerald-500/20 flex items-center gap-2"
+                className="px-6 py-3.5 btn-gold-primary text-slate-950 font-bold rounded-2xl text-xs transition shadow-xl flex items-center gap-2"
               >
-                <Sparkles className="w-4 h-4" />
+                <Sparkles className="w-4 h-4 text-slate-950" />
                 <span>Manage Plan Tier</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* 2. DASHBOARD STATISTICS SYSTEM (4 MAIN KPI MODULES) (Item #7) */}
+        {/* 5-CARD PRESTIGE 4K GOLF GALLERY SHOWCASE (BELOW WELCOME BANNER) */}
+        <div className="space-y-4">
+          <div className="flex justify-between items-end">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#D4AF37]">
+                EXCLUSIVELY AFFILIATED ESTATES
+              </span>
+              <h2 className="text-xl sm:text-2xl font-serif font-bold text-white">
+                World-Class Fairways & Championship Venues
+              </h2>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {/* Card 1: Lynwood Castle & Estates */}
+            <div className="relative rounded-3xl overflow-hidden border border-[#D4AF37]/30 bg-[#05070A]/80 shadow-2xl group flex flex-col justify-end h-72 sm:h-80">
+              <img
+                src="/images/golf_bg_1.jpg"
+                alt="Lynwood Castle & Panoramic Estate"
+                className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-110 transition duration-700 ease-out brightness-90"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#05070A] via-[#05070A]/40 to-transparent" />
+              <div className="relative p-4 space-y-1">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#05070A]/80 border border-[#D4AF37]/40 text-[#F5E6AB] text-[9px] font-bold uppercase tracking-widest inline-block backdrop-blur-md">
+                  CHAMPIONSHIP ESTATE
+                </span>
+                <h3 className="text-base font-serif font-bold text-white leading-tight">Lynwood Castle & Estates</h3>
+                <p className="text-[10px] text-slate-300 font-light line-clamp-2">
+                  Panoramic sunset vistas over championship lakes and 18-hole tournament courses.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 2: The Golfer's Sanctuary */}
+            <div className="relative rounded-3xl overflow-hidden border border-[#D4AF37]/30 bg-[#05070A]/80 shadow-2xl group flex flex-col justify-end h-72 sm:h-80">
+              <img
+                src="/images/golf_bg_2.jpg"
+                alt="Royal Melbourne Championship Equipment"
+                className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-110 transition duration-700 ease-out brightness-90"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#05070A] via-[#05070A]/40 to-transparent" />
+              <div className="relative p-4 space-y-1">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#05070A]/80 border border-[#D4AF37]/40 text-[#F5E6AB] text-[9px] font-bold uppercase tracking-widest inline-block backdrop-blur-md">
+                  EQUIPMENT & PRECISION
+                </span>
+                <h3 className="text-base font-serif font-bold text-white leading-tight">The Golfer's Sanctuary</h3>
+                <p className="text-[10px] text-slate-300 font-light line-clamp-2">
+                  Attested Stableford scorecards backed by official handicap verification.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 3: Augusta Waters & Resort */}
+            <div className="relative rounded-3xl overflow-hidden border border-[#D4AF37]/30 bg-[#05070A]/80 shadow-2xl group flex flex-col justify-end h-72 sm:h-80">
+              <img
+                src="/images/golf_bg_3.jpg"
+                alt="Palm Resort & Club House"
+                className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-110 transition duration-700 ease-out brightness-90"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#05070A] via-[#05070A]/40 to-transparent" />
+              <div className="relative p-4 space-y-1">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#05070A]/80 border border-[#D4AF37]/40 text-[#F5E6AB] text-[9px] font-bold uppercase tracking-widest inline-block backdrop-blur-md">
+                  EXCLUSIVE RESORT
+                </span>
+                <h3 className="text-base font-serif font-bold text-white leading-tight">Augusta Waters & Resort</h3>
+                <p className="text-[10px] text-slate-300 font-light line-clamp-2">
+                  Private clubhouse access, priority event invitations, and monthly jackpot eligibility.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 4: Pine Valley Fairways */}
+            <div className="relative rounded-3xl overflow-hidden border border-[#D4AF37]/30 bg-[#05070A]/80 shadow-2xl group flex flex-col justify-end h-72 sm:h-80">
+              <img
+                src="/images/golf_bg_4.jpg"
+                alt="Pine Valley Fairway"
+                className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-110 transition duration-700 ease-out brightness-90"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#05070A] via-[#05070A]/40 to-transparent" />
+              <div className="relative p-4 space-y-1">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#05070A]/80 border border-[#D4AF37]/40 text-[#F5E6AB] text-[9px] font-bold uppercase tracking-widest inline-block backdrop-blur-md">
+                  HERITAGE COURSE
+                </span>
+                <h3 className="text-base font-serif font-bold text-white leading-tight">Pine Valley Fairways</h3>
+                <p className="text-[10px] text-slate-300 font-light line-clamp-2">
+                  Evergreen forest terrain where precision golf meets peaceful private surroundings.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 5: Par & Co Golf Club */}
+            <div className="relative rounded-3xl overflow-hidden border border-[#D4AF37]/30 bg-[#05070A]/80 shadow-2xl group flex flex-col justify-end h-72 sm:h-80">
+              <img
+                src="/images/golf_bg_5.jpg"
+                alt="Par & Co Golf Club Flag"
+                className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-110 transition duration-700 ease-out brightness-90"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#05070A] via-[#05070A]/40 to-transparent" />
+              <div className="relative p-4 space-y-1">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#05070A]/80 border border-[#D4AF37]/40 text-[#F5E6AB] text-[9px] font-bold uppercase tracking-widest inline-block backdrop-blur-md">
+                  CLUBHOUSE GREEN
+                </span>
+                <h3 className="text-base font-serif font-bold text-white leading-tight">Par & Co Golf Club</h3>
+                <p className="text-[10px] text-slate-300 font-light line-clamp-2">
+                  Championship greens designed to elevate every moment on the fairway.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. DASHBOARD STATISTICS SYSTEM (4 MAIN KPI MODULES) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Module 1: Membership Status */}
-          <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
-            <div className="flex justify-between items-center text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-              <span>MEMBERSHIP</span>
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          <div className="glass-panel p-5 rounded-2xl border border-[#D4AF37]/20 space-y-2">
+            <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              <span>MEMBERSHIP STATUS</span>
+              <Crown className="w-4 h-4 text-[#D4AF37]" />
             </div>
-            <div className="text-2xl font-black text-emerald-400 uppercase flex items-center gap-2">
+            <div className="text-2xl font-serif font-bold text-[#F5E6AB] uppercase flex items-center gap-2">
               {user.subscriptionStatus}
             </div>
-            <div className="text-[11px] text-slate-400 font-medium">
-              Renews: {user.subscriptionRenewalDate ? user.subscriptionRenewalDate.split('T')[0] : 'Oct 23, 2026'}
+            <div className="text-[11px] text-slate-400 font-light">
+              Tier: <strong className="text-white font-mono">{user.billingCycle || 'Monthly'}</strong>
             </div>
           </div>
 
           {/* Module 2: Charity Impact */}
-          <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
-            <div className="flex justify-between items-center text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-              <span>CHARITY IMPACT</span>
-              <Heart className="w-4 h-4 text-rose-400 fill-rose-400" />
+          <div className="glass-panel p-5 rounded-2xl border border-[#D4AF37]/20 space-y-2">
+            <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              <span>CHARITY PLEDGE</span>
+              <Heart className="w-4 h-4 text-[#D4AF37]" />
             </div>
-            <div className="text-2xl font-black text-white">
+            <div className="text-2xl font-serif font-bold text-white">
               {user.charityContributionPct || 15}% OF FEE
             </div>
-            <div className="text-[11px] text-rose-300 font-semibold truncate">
+            <div className="text-[11px] text-[#F5E6AB] font-light truncate">
               {charity?.name || 'Fairway for Kids'}
             </div>
           </div>
 
           {/* Module 3: Golf Qualification */}
-          <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
-            <div className="flex justify-between items-center text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+          <div className="glass-panel p-5 rounded-2xl border border-[#D4AF37]/20 space-y-2">
+            <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               <span>GOLF QUALIFICATION</span>
-              <Target className="w-4 h-4 text-amber-400" />
+              <Target className="w-4 h-4 text-[#D4AF37]" />
             </div>
-            <div className="text-2xl font-black text-amber-400 font-mono">
+            <div className="text-2xl font-serif font-bold text-[#F5E6AB] font-mono">
               {scores.length} / 5
             </div>
-            <div className="text-[11px] text-slate-400 font-medium">
-              {scores.length === 5 ? '5/5 Full Entry Ready' : `${5 - scores.length} More Rounds Logged`}
+            <div className="text-[11px] text-slate-400 font-light">
+              {scores.length === 5 ? '5/5 Full Entry Ready' : `${5 - scores.length} More Rounds Needed`}
             </div>
           </div>
 
           {/* Module 4: Prize Winnings */}
-          <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-2">
-            <div className="flex justify-between items-center text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+          <div className="glass-panel p-5 rounded-2xl border border-[#D4AF37]/20 space-y-2">
+            <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               <span>PRIZE WINNINGS</span>
-              <Trophy className="w-4 h-4 text-amber-400" />
+              <Trophy className="w-4 h-4 text-[#D4AF37]" />
             </div>
-            <div className="text-2xl font-black text-gradient-gold">
+            <div className="text-2xl font-serif font-bold gold-text">
               ${totalWon.toLocaleString()}
             </div>
-            <div className="text-[11px] text-amber-300 font-medium">
+            <div className="text-[11px] text-slate-400 font-light">
               {userWinners.length} Winning Tier Matches
             </div>
           </div>
         </div>
 
-        {/* 3. NEXT DRAW & CHAMPIONSHIP PRIZE POOL SECTION (Item #8 & #9) */}
-        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-amber-500/30 bg-gradient-to-b from-[#14231b] to-[#0a1510] space-y-6">
+        {/* 3. NEXT DRAW & CHAMPIONSHIP PRIZE POOL SECTION */}
+        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-[#D4AF37]/30 bg-gradient-to-b from-[#0f1420] to-[#05070A] space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-white/10 pb-6">
             <div className="space-y-2">
-              <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
-                <Flame className="w-4 h-4 text-amber-400 animate-pulse" /> CURRENT CHAMPIONSHIP DRAW
+              <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest flex items-center gap-1.5">
+                <Flame className="w-4 h-4 text-[#D4AF37]" /> CURRENT CHAMPIONSHIP DRAW
               </span>
-              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{upcomingDraw?.name}</h2>
-              <p className="text-xs text-slate-400">
-                Draw Date: <strong className="text-white">{upcomingDraw?.drawDate.split('T')[0]}</strong> · Mode: <strong className="text-emerald-400 capitalize">{upcomingDraw?.drawLogic || 'Algorithmic'}</strong>
+              <h2 className="text-2xl sm:text-3xl font-serif font-bold text-white tracking-tight">{upcomingDraw?.name}</h2>
+              <p className="text-xs text-slate-400 font-light">
+                Draw Date: <strong className="text-white">{upcomingDraw?.drawDate.split('T')[0]}</strong> · Cadence: <strong className="text-[#F5E6AB]">Monthly</strong>
               </p>
             </div>
 
@@ -321,39 +441,39 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-5 rounded-2xl bg-black/50 border border-amber-500/20 space-y-1">
+            <div className="p-5 rounded-2xl bg-[#05070A] border border-[#D4AF37]/30 space-y-1">
               <span className="text-[10px] font-bold text-slate-400 uppercase">ESTIMATED GRAND JACKPOT</span>
-              <div className="text-4xl font-black text-gradient-gold">${upcomingDraw?.jackpotPool.toLocaleString()}</div>
-              <div className="text-[11px] text-amber-400 font-semibold flex items-center gap-1">
-                <Flame className="w-3.5 h-3.5 text-amber-400" /> Includes ${upcomingDraw?.rolloverFromPrevious.toLocaleString()} Rollover
+              <div className="text-4xl font-serif font-bold gold-text">${upcomingDraw?.jackpotPool.toLocaleString()}</div>
+              <div className="text-[11px] text-[#F5E6AB] font-mono flex items-center gap-1">
+                <Flame className="w-3.5 h-3.5 text-[#D4AF37]" /> +${upcomingDraw?.rolloverFromPrevious.toLocaleString()} Rollover
               </div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-black/50 border border-white/10 space-y-1">
+            <div className="p-5 rounded-2xl bg-[#05070A] border border-white/10 space-y-1">
               <span className="text-[10px] font-bold text-slate-400 uppercase">TIER 4 (4-MATCH POOL)</span>
-              <div className="text-2xl font-extrabold text-emerald-400">${upcomingDraw?.tier4Pool.toLocaleString()}</div>
-              <div className="text-[11px] text-slate-400">Split among 4-match scorecards</div>
+              <div className="text-2xl font-serif font-bold text-white">${upcomingDraw?.tier4Pool.toLocaleString()}</div>
+              <div className="text-[11px] text-slate-400 font-light">Split among 4-match scorecards</div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-black/50 border border-white/10 space-y-1">
+            <div className="p-5 rounded-2xl bg-[#05070A] border border-white/10 space-y-1">
               <span className="text-[10px] font-bold text-slate-400 uppercase">TIER 3 (3-MATCH POOL)</span>
-              <div className="text-2xl font-extrabold text-emerald-400">${upcomingDraw?.tier3Pool.toLocaleString()}</div>
-              <div className="text-[11px] text-slate-400">Split among 3-match scorecards</div>
+              <div className="text-2xl font-serif font-bold text-white">${upcomingDraw?.tier3Pool.toLocaleString()}</div>
+              <div className="text-[11px] text-slate-400 font-light">Split among 3-match scorecards</div>
             </div>
           </div>
         </div>
 
-        {/* 4. QUALIFICATION / 5-SCORE PROGRESSION TRACKER (Item #10) */}
-        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 space-y-6">
+        {/* 4. QUALIFICATION / 5-SCORE PROGRESSION TRACKER */}
+        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-[#D4AF37]/20 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
             <div>
-              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">CORE QUALIFICATION SYSTEM</span>
-              <h3 className="text-xl font-black text-white mt-1">5-Round Stableford Qualification Progression</h3>
+              <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest">QUALIFICATION TRACKER</span>
+              <h3 className="text-xl font-serif font-bold text-white mt-1">5-Round Stableford Progression</h3>
             </div>
 
             <Link
               href="/scores"
-              className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black rounded-xl text-xs transition shadow-lg shadow-emerald-500/20 flex items-center gap-2 self-start sm:self-auto"
+              className="px-5 py-2.5 btn-gold-primary text-slate-950 font-bold rounded-xl text-xs transition shadow-md flex items-center gap-2 self-start sm:self-auto"
             >
               <span>LOG YOUR NEXT ROUND →</span>
             </Link>
@@ -368,21 +488,21 @@ export default function DashboardPage() {
                   key={idx}
                   className={`p-4 rounded-2xl border text-center space-y-2 transition ${
                     isFilled
-                      ? 'bg-emerald-950/40 border-emerald-500/40'
-                      : 'bg-slate-950/40 border-white/10'
+                      ? 'bg-[#121824] border-[#D4AF37]/40'
+                      : 'bg-[#05070A] border-white/10'
                   }`}
                 >
                   <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase">
                     <span>ROUND {idx + 1}</span>
                     {isFilled ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <CheckCircle2 className="w-4 h-4 text-[#D4AF37]" />
                     ) : (
                       <Circle className="w-4 h-4 text-slate-600" />
                     )}
                   </div>
 
-                  <div className={`w-12 h-12 rounded-2xl mx-auto flex items-center justify-center font-black text-lg ${
-                    isFilled ? 'ball-matched text-white' : 'bg-slate-900 border border-white/10 text-slate-600'
+                  <div className={`w-12 h-12 rounded-2xl mx-auto flex items-center justify-center font-serif font-bold text-lg ${
+                    isFilled ? 'ball-matched text-[#05070A]' : 'bg-slate-900 border border-white/10 text-slate-600'
                   }`}>
                     {isFilled ? score.score : '—'}
                   </div>
@@ -396,7 +516,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 5. SCORE PROGRESSION CHART (Item #12 & #30) */}
+        {/* 5. SCORE PROGRESSION CHART */}
         <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10">
           <ScoreChart scores={scores} />
         </div>
@@ -406,27 +526,27 @@ export default function DashboardPage() {
           <ScoreManager userId={user.id} onScoresChanged={loadData} />
         </div>
 
-        {/* 7. CHARITY & MY IMPACT SECTION (Item #13 & #14) */}
-        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-rose-500/30 space-y-6 bg-gradient-to-b from-[#1f121d] to-[#0a0f18]">
+        {/* 7. CHARITY & MY IMPACT SECTION */}
+        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-[#D4AF37]/30 space-y-6 bg-gradient-to-b from-[#0f1420] to-[#05070A]">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
             <div>
-              <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-1.5">
-                <Heart className="w-4 h-4 fill-rose-400 text-rose-400" /> YOUR PHILANTHROPIC PLEDGE
+              <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest flex items-center gap-1.5">
+                <Heart className="w-4 h-4 text-[#D4AF37]" /> YOUR PHILANTHROPIC PLEDGE
               </span>
-              <h3 className="text-xl font-black text-white mt-1">Your Selected Cause & Pledge</h3>
+              <h3 className="text-xl font-serif font-bold text-white mt-1">Your Selected Cause & Pledge</h3>
             </div>
 
             <button
               onClick={() => setEditingPledge(!editingPledge)}
               className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-bold transition flex items-center gap-1.5 self-start sm:self-auto"
             >
-              <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+              <Edit3 className="w-3.5 h-3.5 text-[#D4AF37]" />
               {editingPledge ? 'Cancel Adjustments' : 'Adjust Charity or Pledge %'}
             </button>
           </div>
 
           {editingPledge ? (
-            <div className="p-5 rounded-2xl bg-slate-950 border border-white/15 space-y-5">
+            <div className="p-5 rounded-2xl bg-[#05070A] border border-[#D4AF37]/30 space-y-5">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   Change Charity Recipient
@@ -447,7 +567,7 @@ export default function DashboardPage() {
               <div className="space-y-2">
                 <div className="flex justify-between text-xs font-semibold">
                   <span className="text-slate-300">Pledge Percentage:</span>
-                  <span className="text-rose-400 font-bold">{pledgePct}% of subscription</span>
+                  <span className="text-[#D4AF37] font-bold font-mono">{pledgePct}% of subscription</span>
                 </div>
                 <input
                   type="range"
@@ -456,13 +576,13 @@ export default function DashboardPage() {
                   step="5"
                   value={pledgePct}
                   onChange={(e) => setPledgePct(Number(e.target.value))}
-                  className="w-full accent-rose-500 cursor-pointer"
+                  className="w-full accent-[#D4AF37] cursor-pointer"
                 />
               </div>
 
               <button
                 onClick={handleSavePledge}
-                className="px-5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl text-xs transition shadow-md shadow-rose-500/20"
+                className="px-5 py-2.5 btn-gold-primary text-slate-950 font-bold rounded-xl text-xs transition shadow-md"
               >
                 Save New Charity Settings
               </button>
@@ -474,24 +594,24 @@ export default function DashboardPage() {
                   <img
                     src={charity.imageUrl}
                     alt={charity.name}
-                    className="w-16 h-16 rounded-2xl object-cover border border-white/10 shrink-0"
+                    className="w-16 h-16 rounded-2xl object-cover border border-[#D4AF37]/30 shrink-0"
                   />
                 )}
                 <div>
-                  <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">
+                  <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider">
                     {charity?.category}
                   </span>
-                  <h4 className="text-lg font-bold text-white">{charity?.name}</h4>
-                  <p className="text-xs text-slate-400 line-clamp-1">{charity?.tagline}</p>
+                  <h4 className="text-lg font-serif font-bold text-white">{charity?.name}</h4>
+                  <p className="text-xs text-slate-400 font-light line-clamp-1">{charity?.tagline}</p>
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-black/40 border border-white/10 text-center">
+              <div className="p-4 rounded-2xl bg-black/60 border border-white/10 text-center">
                 <div className="text-[10px] text-slate-400 uppercase font-semibold">Current Contribution</div>
-                <div className="text-2xl font-black text-emerald-400 mt-0.5">
+                <div className="text-2xl font-serif font-bold gold-text mt-0.5">
                   {user.charityContributionPct || 15}%
                 </div>
-                <div className="text-[10px] text-slate-400 mt-0.5">of your membership fee</div>
+                <div className="text-[10px] text-slate-400 mt-0.5 font-light">of your membership fee</div>
               </div>
             </div>
           )}

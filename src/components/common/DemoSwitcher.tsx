@@ -30,20 +30,20 @@ export default function DemoSwitcher() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50">
-      <div className="bg-[#141a29]/95 backdrop-blur-md border border-white/15 rounded-2xl shadow-2xl p-2 text-xs text-slate-200">
+      <div className="bg-[#05070A]/95 backdrop-blur-md border border-[#D4AF37]/30 rounded-2xl shadow-2xl p-2 text-xs text-slate-200">
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-white/10 rounded-xl transition font-medium"
         >
-          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+          <div className="w-2 h-2 rounded-full bg-[#D4AF37] animate-ping" />
           <span className="text-slate-400">Testing Persona:</span>
           <span className="font-semibold text-white flex items-center gap-1.5">
             {currentUser ? (
               <>
                 {currentUser.role === 'admin' ? (
-                  <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
                 ) : (
-                  <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <UserCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
                 )}
                 {currentUser.name} ({currentUser.role})
               </>
@@ -59,14 +59,14 @@ export default function DemoSwitcher() {
 
         {isOpen && (
           <div className="mt-2 pt-2 border-t border-white/10 space-y-1 w-72">
-            <div className="text-[10px] uppercase tracking-wider text-slate-400 px-3 py-1 font-semibold">
-              Switch User Role (§ 03 PRD)
+            <div className="text-[10px] uppercase tracking-wider text-slate-400 px-3 py-1 font-semibold font-mono">
+              Switch User Role
             </div>
 
             <button
               onClick={() => handleSelectUser(null)}
               className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between transition ${
-                !currentUser ? 'bg-orange-500/20 text-orange-300 font-semibold' : 'hover:bg-white/5'
+                !currentUser ? 'bg-[#D4AF37]/20 text-[#F5E6AB] font-semibold border border-[#D4AF37]/40' : 'hover:bg-white/5'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -76,7 +76,7 @@ export default function DemoSwitcher() {
                   <div className="text-[10px] text-slate-400">Logged out, browse & explore</div>
                 </div>
               </div>
-              {!currentUser && <Check className="w-4 h-4 text-orange-400" />}
+              {!currentUser && <Check className="w-4 h-4 text-[#D4AF37]" />}
             </button>
 
             {allUsers.map((user) => (
@@ -85,28 +85,28 @@ export default function DemoSwitcher() {
                 onClick={() => handleSelectUser(user.id)}
                 className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between transition ${
                   currentUser?.id === user.id
-                    ? 'bg-orange-500/20 text-orange-300 font-semibold'
+                    ? 'bg-[#D4AF37]/20 text-[#F5E6AB] font-semibold border border-[#D4AF37]/40'
                     : 'hover:bg-white/5'
                 }`}
               >
                 <div className="flex items-center gap-2">
                   {user.role === 'admin' ? (
-                    <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                    <ShieldCheck className="w-4 h-4 text-[#D4AF37] shrink-0" />
                   ) : (
-                    <UserCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <UserCheck className="w-4 h-4 text-[#D4AF37] shrink-0" />
                   )}
                   <div className="truncate">
                     <div className="text-slate-200 truncate font-medium">
                       {user.name}{' '}
                       {user.role === 'admin' && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 ml-1">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#D4AF37]/20 text-[#F5E6AB] ml-1 font-mono">
                           Admin
                         </span>
                       )}
                     </div>
                     <div className="text-[10px] text-slate-400">
                       {user.subscriptionStatus === 'active' ? (
-                        <span className="text-emerald-400">Active {user.billingCycle}</span>
+                        <span className="text-[#D4AF37]">Active {user.billingCycle}</span>
                       ) : (
                         <span className="text-rose-400 capitalize">{user.subscriptionStatus}</span>
                       )}
@@ -114,7 +114,7 @@ export default function DemoSwitcher() {
                     </div>
                   </div>
                 </div>
-                {currentUser?.id === user.id && <Check className="w-4 h-4 text-orange-400 shrink-0" />}
+                {currentUser?.id === user.id && <Check className="w-4 h-4 text-[#D4AF37] shrink-0" />}
               </button>
             ))}
 

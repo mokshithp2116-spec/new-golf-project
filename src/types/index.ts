@@ -4,6 +4,17 @@ export type SubscriptionStatus = 'active' | 'inactive' | 'lapsed';
 
 export type BillingCycle = 'monthly' | 'yearly';
 
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  price: number;
+  interval: 'monthly' | 'yearly';
+  billingCycle?: BillingCycle;
+  description: string;
+  features: string[];
+  stripePriceId?: string;
+}
+
 export interface User {
   id: string;
   name: string;

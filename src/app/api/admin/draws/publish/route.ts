@@ -15,25 +15,21 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { drawId, winningNumbers, drawLogic, jackpotPool, tier4Pool, tier3Pool } = body;
 
-    const db = getDb();
+    const { dbGetUserScores } = await import('@/lib/db');
     const allUsers = dbGetAllUsers().filter(u => u.role === 'subscriber' && u.subscriptionStatus === 'active');
     
-    // Fetch all golf scores for subscribers
-    const scoreRows = db.prepare('SELECT user_id, score, score_date FROM golf_scores ORDER BY score_date DESC').all() as any[];
-    
+    // Fetch all golf scores for active subscribers from persistent store
     const userScoresMap: Record<string, number[]> = {};
-    for (const r of scoreRows) {
-      if (!userScoresMap[r.user_id]) {
-        userScoresMap[r.user_id] = [];
-      }
-      if (userScoresMap[r.user_id].length < 5) {
-        userScoresMap[r.user_id].push(r.score);
+    for (const u of allUsers) {
+      const userGolfScores = dbGetUserScores(u.id);
+      if (userGolfScores && userGolfScores.length > 0) {
+        userScoresMap[u.id] = userGolfScores.map((s) => s.score);
       }
     }
 
     const drawnNums: number[] = Array.isArray(winningNumbers) && winningNumbers.length === 5 
       ? winningNumbers.sort((a: number, b: number) => a - b)
-      : [45, 25, 33, 14, 28]; // Default winning numbers containing 45, 25, 33 as requested
+      : [45, 25, 33, 14, 28];
 
     const winningSet = new Set(drawnNums);
 
@@ -41,7 +37,7 @@ export async function POST(request: Request) {
     const tier4WinnersList: { user: any; matched: number[]; userScores: number[] }[] = [];
     const tier3WinnersList: { user: any; matched: number[]; userScores: number[] }[] = [];
 
-    // Evaluate each subscriber
+    // Evaluate each subscriber against winning numbers
     for (const user of allUsers) {
       const scores = userScoresMap[user.id] || [];
       if (scores.length === 0) continue;
@@ -53,8 +49,10 @@ export async function POST(request: Request) {
         tier5WinnersList.push({ user, matched, userScores: scores });
       } else if (matched.length === 4) {
         tier4WinnersList.push({ user, matched, userScores: scores });
-      } else if (matched.length >= 1 || scores.some(s => s === 45 || s === 25 || s === 33)) {
-        tier3WinnersList.push({ user, matched: matched.length > 0 ? matched : [scores[0]], userScores: scores });
+      } else if (matched.length >= 3) {
+        tier3WinnersList.push({ user, matched, userScores: scores });
+      } else if (matched.length >= 1) {
+        tier3WinnersList.push({ user, matched, userScores: scores });
       }
     }
 

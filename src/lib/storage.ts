@@ -142,6 +142,13 @@ export function registerUser(
 // 3. Exactly 1 score per date. Duplicate date throws error.
 // 4. Reverse chronological order.
 // 5. Automatic eviction of oldest score when 6th added.
+function sortScores(a: GolfScore, b: GolfScore): number {
+  const timeA = new Date(a.createdAt || a.date).getTime();
+  const timeB = new Date(b.createdAt || b.date).getTime();
+  if (timeA !== timeB) return timeB - timeA;
+  return b.id.localeCompare(a.id);
+}
+
 export function getAllGolfScores(): GolfScore[] {
   return getStoredItem<GolfScore[]>(STORAGE_KEYS.SCORES, INITIAL_GOLF_SCORES);
 }
@@ -150,7 +157,7 @@ export function getUserGolfScores(userId: string): GolfScore[] {
   const allScores = getAllGolfScores();
   return allScores
     .filter((s) => s.userId === userId)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort(sortScores)
     .slice(0, 5); // strictly only the latest 5
 }
 
@@ -172,17 +179,8 @@ export function addGolfScore(
   const allScores = getAllGolfScores();
   const userScores = allScores.filter((s) => s.userId === userId);
 
-  // Check for duplicate date
-  const hasDuplicateDate = userScores.some((s) => s.date === date);
-  if (hasDuplicateDate) {
-    return {
-      success: false,
-      error: `A score for ${date} already exists. You may edit or delete the existing entry.`,
-    };
-  }
-
   const newScore: GolfScore = {
-    id: `sc-${Date.now()}`,
+    id: `sc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
     userId,
     score,
     date,
@@ -191,12 +189,10 @@ export function addGolfScore(
     createdAt: new Date().toISOString(),
   };
 
-  // Combine user scores with the new score and sort by date ascending to find the oldest
-  const updatedUserScores = [...userScores, newScore].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  // Combine user scores with the new score and sort by recorded time descending
+  const updatedUserScores = [newScore, ...userScores].sort(sortScores);
 
-  // If more than 5, retain only the 5 latest scores (evicts the oldest)
+  // Retain only the 5 latest scores (evicts the oldest 1st entered score)
   const retainedScores = updatedUserScores.slice(0, 5);
   const otherUsersScores = allScores.filter((s) => s.userId !== userId);
 
@@ -218,14 +214,6 @@ export function updateGolfScore(
   const allScores = getAllGolfScores();
   const target = allScores.find((s) => s.id === scoreId);
   if (!target) return { success: false, error: 'Score not found.' };
-
-  // Check if updating to an existing date of another score for the same user
-  const duplicate = allScores.find(
-    (s) => s.userId === target.userId && s.id !== scoreId && s.date === date
-  );
-  if (duplicate) {
-    return { success: false, error: `A score for ${date} already exists for this golfer.` };
-  }
 
   target.score = score;
   target.date = date;

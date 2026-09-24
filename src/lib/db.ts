@@ -440,3 +440,102 @@ export function dbGetLiveMetrics() {
     arr: activeSubscribers * 19 * 12,
   };
 }
+
+// ----------------- GOLF SCORES OPERATIONS -----------------
+
+function sortScores(a: GolfScore, b: GolfScore): number {
+  const timeA = new Date(a.createdAt || a.date).getTime();
+  const timeB = new Date(b.createdAt || b.date).getTime();
+  if (timeA !== timeB) return timeB - timeA;
+  return b.id.localeCompare(a.id);
+}
+
+export function dbGetUserScores(userId: string): GolfScore[] {
+  const store = loadStore();
+  if (!store.scores) store.scores = [];
+  return store.scores
+    .filter((s) => s.userId === userId)
+    .sort(sortScores)
+    .slice(0, 5);
+}
+
+export function dbAddGolfScore(
+  userId: string,
+  score: number,
+  date: string,
+  courseName?: string,
+  notes?: string
+): { success: boolean; message?: string; score?: GolfScore } {
+  const store = loadStore();
+  if (!store.scores) store.scores = [];
+
+  const cleanDate = date.includes('T') ? date.split('T')[0] : date;
+  const now = new Date().toISOString();
+
+  const finalScore: GolfScore = {
+    id: `sc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    userId,
+    score,
+    date: cleanDate,
+    courseName: courseName || 'Local Course',
+    notes: notes || '',
+    createdAt: now,
+  };
+
+  store.scores.push(finalScore);
+
+  // Rolling 5 rule (§ 05): keep latest 5 recorded scores for user (most recent first)
+  const userScoresSorted = store.scores
+    .filter((s) => s.userId === userId)
+    .sort(sortScores);
+
+  if (userScoresSorted.length > 5) {
+    const keepIds = new Set(userScoresSorted.slice(0, 5).map((s) => s.id));
+    store.scores = store.scores.filter((s) => s.userId !== userId || keepIds.has(s.id));
+  }
+
+  saveStore();
+  return { success: true, score: finalScore };
+}
+
+export function dbUpdateGolfScore(
+  scoreId: string,
+  userId: string,
+  score: number,
+  date: string,
+  courseName?: string,
+  notes?: string
+): { success: boolean; message?: string } {
+  const store = loadStore();
+  if (!store.scores) store.scores = [];
+
+  const target = store.scores.find((s) => s.id === scoreId && s.userId === userId);
+  if (!target) {
+    return { success: false, message: 'Score record not found or access denied.' };
+  }
+
+  const cleanDate = date.includes('T') ? date.split('T')[0] : date;
+  target.score = score;
+  target.date = cleanDate;
+  if (courseName !== undefined) target.courseName = courseName;
+  if (notes !== undefined) target.notes = notes;
+
+  saveStore();
+  return { success: true };
+}
+
+export function dbDeleteGolfScore(scoreId: string, userId: string): { success: boolean; message?: string } {
+  const store = loadStore();
+  if (!store.scores) store.scores = [];
+
+  const initialCount = store.scores.length;
+  store.scores = store.scores.filter((s) => !(s.id === scoreId && s.userId === userId));
+
+  if (store.scores.length === initialCount) {
+    return { success: false, message: 'Score not found or unauthorized.' };
+  }
+
+  saveStore();
+  return { success: true };
+}
+

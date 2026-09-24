@@ -8,7 +8,7 @@ import {
   getAnalytics,
   getCurrentUser,
 } from '@/lib/storage';
-import { Charity, Draw, PlatformAnalytics, User } from '@/types';
+import { Charity, Draw, PlatformAnalytics, User, SubscriptionPlan } from '@/types';
 import SubscriptionModal from '@/components/subscription/SubscriptionModal';
 import DirectDonationModal from '@/components/charity/DirectDonationModal';
 import AuthModal from '@/components/auth/AuthModal';
@@ -27,22 +27,35 @@ import {
   Layers,
   Award,
   Users,
-  ExternalLink,
   ChevronRight,
   Target,
   Sparkle,
+  Crown,
+  Check,
 } from 'lucide-react';
+
+const DEFAULT_ANALYTICS: PlatformAnalytics = {
+  totalUsers: 2425,
+  activeSubscribers: 2380,
+  totalPrizePool: 80500,
+  activeJackpot: 40700,
+  totalCharityContributions: 124800,
+  totalDrawsCompleted: 14,
+  totalWinnersPaid: 42,
+};
 
 export default function HomePage() {
   const { t } = useLanguage();
   const { user: authUser } = useAuth();
-  const [analytics, setAnalytics] = useState<PlatformAnalytics>(getAnalytics());
+  const [analytics, setAnalytics] = useState<PlatformAnalytics>(DEFAULT_ANALYTICS);
   const [charities, setCharities] = useState<Charity[]>([]);
   const [draws, setDraws] = useState<Draw[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [eligiblePlans, setEligiblePlans] = useState<SubscriptionPlan[]>([]);
+  const [activePlan, setActivePlan] = useState<SubscriptionPlan | null>(null);
 
   // Modals
   const [subModalOpen, setSubModalOpen] = useState(false);
+  const [subModalCycle, setSubModalCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [donationModalOpen, setDonationModalOpen] = useState(false);
   const [selectedDonationCharityId, setSelectedDonationCharityId] = useState<string | undefined>();
@@ -53,11 +66,24 @@ export default function HomePage() {
 
   const isSubscribed = authUser?.subscriptionStatus === 'active';
 
+  const fetchSubscriptionStatus = async () => {
+    try {
+      const res = await fetch('/api/user/subscription');
+      const data = await res.json();
+      if (data.success) {
+        setEligiblePlans(data.eligiblePlans || []);
+        setActivePlan(data.currentPlan || null);
+      }
+    } catch {
+      // Fallback
+    }
+  };
+
   useEffect(() => {
     setAnalytics(getAnalytics());
     setCharities(getCharities());
     setDraws(getDraws());
-    setCurrentUser(authUser);
+    fetchSubscriptionStatus();
 
     // Smooth anchor scrolling to avoid page jumps on refresh
     if (typeof window !== 'undefined' && window.location.hash) {
@@ -81,36 +107,35 @@ export default function HomePage() {
   const prizePoolShare = (price * 0.5).toFixed(2);
 
   return (
-    <div className="space-y-24 pb-20">
-      {/* 1. HERO SECTION (§ 12: Feel, not fairway. Emotion-driven, leading with impact) */}
-      <section className="relative pt-12 md:pt-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        {/* Glow ambient backgrounds */}
-        <div className="absolute top-10 left-1/2 -translate-x-1/2 w-3/4 h-80 bg-orange-600/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-40 right-10 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="space-y-28 pb-24 relative z-10 text-slate-100">
+      {/* 1. HERO SECTION */}
+      <section className="relative pt-16 md:pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        {/* Glow ambient background layers */}
+        <div className="absolute top-10 left-1/2 -translate-x-1/2 w-3/4 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative text-center max-w-3xl mx-auto space-y-6">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-slate-300">
-            <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-            <span>{t('hero_badge')}</span>
+        <div className="relative text-center max-w-4xl mx-auto space-y-7">
+          {/* Champagne Gold Crest Badge */}
+          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[#121824]/80 border border-[#D4AF37]/30 text-xs font-semibold text-[#F5E6AB] backdrop-blur-md shadow-lg">
+            <Crown className="w-3.5 h-3.5 text-[#D4AF37]" />
+            <span className="uppercase tracking-widest text-[11px] font-bold">DIGITAL HEROES · PRIVATE GOLF MEMBERSHIP</span>
           </div>
 
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.08]">
-            {t('hero_title')}
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-serif font-bold tracking-tight text-white leading-[1.08]">
+            Where Precision Meets <span className="gold-text">Prestige</span>
           </h1>
 
-          <p className="text-base sm:text-lg text-slate-300 leading-relaxed max-w-2xl mx-auto">
-            {t('hero_desc')}
+          <p className="text-base sm:text-lg text-slate-300/90 leading-relaxed max-w-2xl mx-auto font-light">
+            Transform your rolling 5 Stableford golf rounds into charitable momentum, high-tier monthly rewards, and elite private club membership.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
             {isSubscribed ? (
               <Link
                 href="/dashboard"
-                className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 text-white font-bold rounded-2xl text-base transition shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 group transform hover:-translate-y-0.5"
+                className="w-full sm:w-auto px-8 py-4 btn-gold-primary font-bold rounded-2xl text-sm transition shadow-2xl flex items-center justify-center gap-2 group"
               >
-                <Trophy className="w-5 h-5 text-amber-300" />
-                <span>View Active Entry & Dashboard</span>
+                <Trophy className="w-4 h-4 text-slate-950" />
+                <span>GO TO GOLFER DASHBOARD</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
               </Link>
             ) : (
@@ -119,148 +144,258 @@ export default function HomePage() {
                   if (!authUser) setAuthModalOpen(true);
                   else setSubModalOpen(true);
                 }}
-                className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-2xl text-base transition shadow-xl shadow-orange-500/25 flex items-center justify-center gap-2 group transform hover:-translate-y-0.5"
+                className="w-full sm:w-auto px-8 py-4 btn-gold-primary font-bold rounded-2xl text-sm transition shadow-2xl flex items-center justify-center gap-2 group"
               >
-                <span>{t('btn_subscribe_draw')}</span>
+                <Sparkles className="w-4 h-4 text-slate-950" />
+                <span>JOIN THE CLUB & SUBSCRIBE</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
               </button>
             )}
 
             <button
               onClick={() => setDonationModalOpen(true)}
-              className="w-full sm:w-auto px-6 py-4 rounded-2xl border border-white/15 bg-white/5 hover:bg-white/10 text-slate-200 font-semibold text-base transition flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-7 py-4 rounded-2xl border border-[#D4AF37]/30 bg-[#121824]/60 hover:bg-[#121824] text-slate-200 font-semibold text-sm transition flex items-center justify-center gap-2 backdrop-blur-md"
             >
-              <Heart className="w-4 h-4 text-rose-400" />
+              <Heart className="w-4 h-4 text-[#D4AF37]" />
               <span>{t('btn_direct_donate')}</span>
             </button>
           </div>
 
-          <div className="pt-2 text-xs text-slate-400 flex items-center justify-center gap-4 flex-wrap">
-            <span className="flex items-center gap-1 text-emerald-400">
-              <CheckCircle2 className="w-3.5 h-3.5" /> {t('pledge_min')}
+          <div className="pt-3 text-xs text-slate-400 flex items-center justify-center gap-4 flex-wrap">
+            <span className="flex items-center gap-1.5 text-amber-200/90">
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37]" /> {t('pledge_min')}
             </span>
-            <span>•</span>
-            <span className="flex items-center gap-1 text-amber-400">
-              <CheckCircle2 className="w-3.5 h-3.5" /> {t('logic_stableford')}
+            <span className="text-[#D4AF37]/40">•</span>
+            <span className="flex items-center gap-1.5 text-amber-200/90">
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37]" /> {t('logic_stableford')}
             </span>
-            <span>•</span>
-            <span className="flex items-center gap-1 text-orange-400">
-              <CheckCircle2 className="w-3.5 h-3.5" /> {t('jackpot_guarantee')}
+            <span className="text-[#D4AF37]/40">•</span>
+            <span className="flex items-center gap-1.5 text-amber-200/90">
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37]" /> {t('jackpot_guarantee')}
             </span>
           </div>
         </div>
 
+        {/* 5-CARD PRESTIGE GOLF GALLERY SHOWCASE */}
+        <div className="mt-14 space-y-6">
+          <div className="text-center space-y-2">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-[#D4AF37]">
+              EXCLUSIVELY AFFILIATED ESTATES
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-serif font-bold text-white">
+              World-Class Fairways & Championship Venues
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {/* Card 1: Aerial Sunset Resort (Image 1) */}
+            <div className="relative rounded-3xl overflow-hidden border border-[#D4AF37]/30 bg-[#05070A]/80 shadow-2xl group flex flex-col justify-end h-80 sm:h-96">
+              <img
+                src="/images/golf_bg_1.jpg"
+                alt="Lynwood Castle & Panoramic Estate"
+                className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-110 transition duration-700 ease-out brightness-90"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#05070A] via-[#05070A]/40 to-transparent" />
+              <div className="relative p-5 space-y-1.5">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#05070A]/80 border border-[#D4AF37]/40 text-[#F5E6AB] text-[9px] font-bold uppercase tracking-widest inline-block backdrop-blur-md">
+                  CHAMPIONSHIP ESTATE
+                </span>
+                <h3 className="text-lg font-serif font-bold text-white leading-tight">Lynwood Castle & Estates</h3>
+                <p className="text-[11px] text-slate-300 font-light line-clamp-2">
+                  Panoramic sunset vistas over championship lakes and 18-hole tournament courses.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 2: Golf Bag & Flag Sunset (Image 2) */}
+            <div className="relative rounded-3xl overflow-hidden border border-[#D4AF37]/30 bg-[#05070A]/80 shadow-2xl group flex flex-col justify-end h-80 sm:h-96">
+              <img
+                src="/images/golf_bg_2.jpg"
+                alt="Royal Melbourne Championship Equipment"
+                className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-110 transition duration-700 ease-out brightness-90"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#05070A] via-[#05070A]/40 to-transparent" />
+              <div className="relative p-5 space-y-1.5">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#05070A]/80 border border-[#D4AF37]/40 text-[#F5E6AB] text-[9px] font-bold uppercase tracking-widest inline-block backdrop-blur-md">
+                  EQUIPMENT & PRECISION
+                </span>
+                <h3 className="text-lg font-serif font-bold text-white leading-tight">The Golfer's Sanctuary</h3>
+                <p className="text-[11px] text-slate-300 font-light line-clamp-2">
+                  Attested Stableford scorecards backed by official handicap verification.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 3: Resort Lake Sunset (Image 3) */}
+            <div className="relative rounded-3xl overflow-hidden border border-[#D4AF37]/30 bg-[#05070A]/80 shadow-2xl group flex flex-col justify-end h-80 sm:h-96">
+              <img
+                src="/images/golf_bg_3.jpg"
+                alt="Palm Resort & Club House"
+                className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-110 transition duration-700 ease-out brightness-90"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#05070A] via-[#05070A]/40 to-transparent" />
+              <div className="relative p-5 space-y-1.5">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#05070A]/80 border border-[#D4AF37]/40 text-[#F5E6AB] text-[9px] font-bold uppercase tracking-widest inline-block backdrop-blur-md">
+                  EXCLUSIVE RESORT
+                </span>
+                <h3 className="text-lg font-serif font-bold text-white leading-tight">Augusta Waters & Resort</h3>
+                <p className="text-[11px] text-slate-300 font-light line-clamp-2">
+                  Private clubhouse access, priority event invitations, and monthly jackpot eligibility.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 4: Pine Forest Course Dusk (Image 4) */}
+            <div className="relative rounded-3xl overflow-hidden border border-[#D4AF37]/30 bg-[#05070A]/80 shadow-2xl group flex flex-col justify-end h-80 sm:h-96">
+              <img
+                src="/images/golf_bg_4.jpg"
+                alt="Pine Valley Fairway"
+                className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-110 transition duration-700 ease-out brightness-90"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#05070A] via-[#05070A]/40 to-transparent" />
+              <div className="relative p-5 space-y-1.5">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#05070A]/80 border border-[#D4AF37]/40 text-[#F5E6AB] text-[9px] font-bold uppercase tracking-widest inline-block backdrop-blur-md">
+                  HERITAGE COURSE
+                </span>
+                <h3 className="text-lg font-serif font-bold text-white leading-tight">Pine Valley Fairways</h3>
+                <p className="text-[11px] text-slate-300 font-light line-clamp-2">
+                  Evergreen forest terrain where precision golf meets peaceful private surroundings.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 5: Par & Co Flag Green (Image 5) */}
+            <div className="relative rounded-3xl overflow-hidden border border-[#D4AF37]/30 bg-[#05070A]/80 shadow-2xl group flex flex-col justify-end h-80 sm:h-96">
+              <img
+                src="/images/golf_bg_5.jpg"
+                alt="Par & Co Golf Club Flag"
+                className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-110 transition duration-700 ease-out brightness-90"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#05070A] via-[#05070A]/40 to-transparent" />
+              <div className="relative p-5 space-y-1.5">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#05070A]/80 border border-[#D4AF37]/40 text-[#F5E6AB] text-[9px] font-bold uppercase tracking-widest inline-block backdrop-blur-md">
+                  CLUBHOUSE GREEN
+                </span>
+                <h3 className="text-lg font-serif font-bold text-white leading-tight">Par & Co Golf Club</h3>
+                <p className="text-[11px] text-slate-300 font-light line-clamp-2">
+                  Championship greens designed to elevate every moment on the fairway.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Live Platform KPI Banner */}
-        <div className="mt-16 grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="glass-panel p-5 rounded-2xl">
+        <div className="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="glass-panel p-5 rounded-2xl border border-[#D4AF37]/20">
             <div className="flex items-center justify-between">
               <span className="text-xs text-slate-400 font-medium">Active Rollover Jackpot</span>
-              <Flame className="w-4 h-4 text-orange-400" />
+              <Flame className="w-4 h-4 text-[#D4AF37]" />
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-gradient-gold mt-1">
+            <div suppressHydrationWarning className="text-2xl sm:text-3xl font-serif font-bold gold-text mt-1">
               ${upcomingDraw?.jackpotPool.toLocaleString() || '40,700'}
             </div>
-            <div className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" /> Includes ${upcomingDraw?.rolloverFromPrevious.toLocaleString()} rolled over!
+            <div suppressHydrationWarning className="text-[11px] text-amber-200/80 mt-1 flex items-center gap-1 font-mono">
+              <TrendingUp className="w-3 h-3 text-[#D4AF37]" /> +${upcomingDraw?.rolloverFromPrevious.toLocaleString()} Rollover
             </div>
           </div>
 
-          <div className="glass-panel p-5 rounded-2xl">
+          <div className="glass-panel p-5 rounded-2xl border border-[#D4AF37]/20">
             <div className="flex items-center justify-between">
               <span className="text-xs text-slate-400 font-medium">Total Charity Donated</span>
-              <Heart className="w-4 h-4 text-rose-400" />
+              <Heart className="w-4 h-4 text-[#D4AF37]" />
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-gradient-impact mt-1">
+            <div suppressHydrationWarning className="text-2xl sm:text-3xl font-serif font-bold gold-text mt-1">
               ${analytics.totalCharityContributions.toLocaleString()}
             </div>
-            <div className="text-[11px] text-slate-400 mt-1">
+            <div className="text-[11px] text-slate-400 mt-1 font-light">
               100% distributed to verified partners
             </div>
           </div>
 
-          <div className="glass-panel p-5 rounded-2xl">
+          <div className="glass-panel p-5 rounded-2xl border border-[#D4AF37]/20">
             <div className="flex items-center justify-between">
               <span className="text-xs text-slate-400 font-medium">Active Golfers</span>
-              <Users className="w-4 h-4 text-slate-400" />
+              <Users className="w-4 h-4 text-[#D4AF37]" />
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-white mt-1">
+            <div suppressHydrationWarning className="text-2xl sm:text-3xl font-serif font-bold text-white mt-1">
               {analytics.activeSubscribers.toLocaleString()}
             </div>
-            <div className="text-[11px] text-slate-400 mt-1">
-              Compete across 180+ clubs
+            <div className="text-[11px] text-slate-400 mt-1 font-light">
+              Competing across global courses
             </div>
           </div>
 
-          <div className="glass-panel p-5 rounded-2xl">
+          <div className="glass-panel p-5 rounded-2xl border border-[#D4AF37]/20">
             <div className="flex items-center justify-between">
               <span className="text-xs text-slate-400 font-medium">Winners Verified & Paid</span>
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-white mt-1">
+            <div suppressHydrationWarning className="text-2xl sm:text-3xl font-serif font-bold text-white mt-1">
               {analytics.totalWinnersPaid} Golfers
             </div>
-            <div className="text-[11px] text-emerald-400 mt-1">
-              Attested scorecard proof required
+            <div className="text-[11px] text-amber-200/80 mt-1 font-light">
+              Scorecards attested & audited
             </div>
           </div>
         </div>
       </section>
 
-      {/* 2. HOW IT WORKS & DRAW MECHANICS (§ 01, § 05, § 06, § 07) */}
+      {/* 2. HOW IT WORKS & DRAW MECHANICS */}
       <section id="how-it-works" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         <div className="text-center max-w-2xl mx-auto space-y-3">
-          <span className="text-xs font-bold tracking-widest text-orange-400 uppercase">
-            {t('how_section_tag')}
+          <span className="text-xs font-bold tracking-widest text-[#D4AF37] uppercase">
+            MEMBERSHIP ARCHITECTURE
           </span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
+          <h2 className="text-3xl sm:text-4xl font-serif font-bold text-white">
             {t('how_section_title')}
           </h2>
-          <p className="text-sm text-slate-400">
-            No golf jargon, no traditional cliches. Digital Heroes turns your real rounds into charitable momentum and monthly lottery-style rewards.
+          <p className="text-sm text-slate-300 font-light">
+            Digital Heroes turns your regular club rounds into impactful charitable funding and monthly lottery-style cash rewards.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Card 1 */}
-          <div className="glass-panel p-8 rounded-3xl space-y-4 relative overflow-hidden border border-white/10 hover:border-orange-500/30 transition">
-            <div className="w-12 h-12 rounded-2xl bg-orange-500/15 text-orange-400 flex items-center justify-center font-black text-lg">
+          <div className="glass-panel p-8 rounded-3xl space-y-4 relative overflow-hidden border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 transition duration-300">
+            <div className="w-12 h-12 rounded-2xl bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30 flex items-center justify-center font-bold text-lg font-serif">
               01
             </div>
-            <h3 className="text-xl font-bold text-white">{t('step1_title')}</h3>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <h3 className="text-xl font-serif font-bold text-white">{t('step1_title')}</h3>
+            <p className="text-xs text-slate-300 font-light leading-relaxed">
               {t('step1_desc')}
             </p>
-            <div className="pt-2 flex items-center gap-1.5 text-xs text-orange-400 font-semibold">
+            <div className="pt-2 flex items-center gap-2 text-xs text-[#D4AF37] font-semibold font-mono">
               <span>Stableford 1–45</span>
               <span>·</span>
-              <span>Rolling 5 Retention</span>
+              <span>Rolling 5 Scores</span>
             </div>
           </div>
 
           {/* Card 2 */}
-          <div className="glass-panel p-8 rounded-3xl space-y-4 relative overflow-hidden border border-white/10 hover:border-rose-500/30 transition">
-            <div className="w-12 h-12 rounded-2xl bg-rose-500/15 text-rose-400 flex items-center justify-center font-black text-lg">
+          <div className="glass-panel p-8 rounded-3xl space-y-4 relative overflow-hidden border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 transition duration-300">
+            <div className="w-12 h-12 rounded-2xl bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30 flex items-center justify-center font-bold text-lg font-serif">
               02
             </div>
-            <h3 className="text-xl font-bold text-white">{t('step2_title')}</h3>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <h3 className="text-xl font-serif font-bold text-white">{t('step2_title')}</h3>
+            <p className="text-xs text-slate-300 font-light leading-relaxed">
               {t('step2_desc')}
             </p>
-            <div className="pt-2 flex items-center gap-1.5 text-xs text-rose-400 font-semibold">
+            <div className="pt-2 flex items-center gap-2 text-xs text-[#D4AF37] font-semibold font-mono">
               <span>{t('pledge_min')}</span>
             </div>
           </div>
 
           {/* Card 3 */}
-          <div className="glass-panel p-8 rounded-3xl space-y-4 relative overflow-hidden border border-white/10 hover:border-amber-500/30 transition">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center font-black text-lg">
+          <div className="glass-panel p-8 rounded-3xl space-y-4 relative overflow-hidden border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 transition duration-300">
+            <div className="w-12 h-12 rounded-2xl bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30 flex items-center justify-center font-bold text-lg font-serif">
               03
             </div>
-            <h3 className="text-xl font-bold text-white">{t('step3_title')}</h3>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <h3 className="text-xl font-serif font-bold text-white">{t('step3_title')}</h3>
+            <p className="text-xs text-slate-300 font-light leading-relaxed">
               {t('step3_desc')}
             </p>
-            <div className="pt-2 flex items-center gap-1.5 text-xs text-amber-400 font-semibold">
+            <div className="pt-2 flex items-center gap-2 text-xs text-[#D4AF37] font-semibold font-mono">
               <span>{t('jackpot_guarantee')}</span>
             </div>
           </div>
@@ -269,19 +404,19 @@ export default function HomePage() {
 
       {/* 3. INTERACTIVE IMPACT & SUBSCRIPTION CALCULATOR */}
       <section id="calculator" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="glass-panel p-8 sm:p-12 rounded-3xl border border-white/10 relative overflow-hidden">
+        <div className="glass-panel p-8 sm:p-12 rounded-3xl border border-[#D4AF37]/30 relative overflow-hidden bg-gradient-to-br from-[#0c1017] via-[#05070A] to-[#0a0d14]">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             {/* Left description */}
             <div className="lg:col-span-6 space-y-6">
               <div>
-                <span className="text-xs font-bold tracking-widest text-orange-400 uppercase">
-                  Interactive Impact Engine (§ 08.1)
+                <span className="text-xs font-bold tracking-widest text-[#D4AF37] uppercase">
+                  IMPACT ALLOCATION ENGINE
                 </span>
-                <h2 className="text-3xl sm:text-4xl font-extrabold text-white mt-2">
-                  Calculate Your Monthly Ripple Effect
+                <h2 className="text-3xl sm:text-4xl font-serif font-bold text-white mt-2">
+                  Calculate Your Membership Contribution
                 </h2>
-                <p className="text-sm text-slate-300 mt-2 leading-relaxed">
-                  See exactly how your subscription fee is split between charitable giving, our monthly cash prize pool, and continuous platform development.
+                <p className="text-sm text-slate-300 font-light mt-2 leading-relaxed">
+                  See how your subscription fee is split between charitable giving, monthly jackpot pools, and operational infrastructure.
                 </p>
               </div>
 
@@ -291,8 +426,8 @@ export default function HomePage() {
                   onClick={() => setCalcCycle('monthly')}
                   className={`px-5 py-2.5 rounded-xl text-xs font-bold transition ${
                     calcCycle === 'monthly'
-                      ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
-                      : 'bg-white/5 text-slate-300 hover:bg-white/10'
+                      ? 'btn-gold-primary text-slate-950 shadow-md'
+                      : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10'
                   }`}
                 >
                   Monthly ($19/mo)
@@ -301,20 +436,20 @@ export default function HomePage() {
                   onClick={() => setCalcCycle('yearly')}
                   className={`px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                     calcCycle === 'yearly'
-                      ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20'
-                      : 'bg-white/5 text-slate-300 hover:bg-white/10'
+                      ? 'btn-gold-primary text-slate-950 shadow-md'
+                      : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10'
                   }`}
                 >
-                  Yearly ($190/yr)
-                  <span className="px-1.5 py-0.5 rounded bg-black/20 text-[10px] font-extrabold">Save 17%</span>
+                  Annual ($190/yr)
+                  <span className="px-1.5 py-0.5 rounded bg-black/30 text-[10px] font-extrabold text-[#F5E6AB]">Save 17%</span>
                 </button>
               </div>
 
               {/* Slider for pledge */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex justify-between text-xs font-semibold">
                   <span className="text-slate-300">Charity Pledge:</span>
-                  <span className="text-orange-400 font-bold">{calcCharityPct}% of your subscription</span>
+                  <span className="text-[#D4AF37] font-bold font-mono">{calcCharityPct}% of fee</span>
                 </div>
                 <input
                   type="range"
@@ -323,10 +458,10 @@ export default function HomePage() {
                   step="5"
                   value={calcCharityPct}
                   onChange={(e) => setCalcCharityPct(Number(e.target.value))}
-                  className="w-full accent-orange-500 cursor-pointer"
+                  className="w-full accent-[#D4AF37] cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] text-slate-400">
-                  <span>10% (Required PRD Baseline)</span>
+                <div className="flex justify-between text-[10px] text-slate-400 font-light">
+                  <span>10% (Baseline)</span>
                   <span>25%</span>
                   <span>50% (Heroic Pledge)</span>
                 </div>
@@ -334,11 +469,11 @@ export default function HomePage() {
             </div>
 
             {/* Right card breakdown */}
-            <div className="lg:col-span-6 bg-slate-900/90 border border-white/10 rounded-2xl p-6 sm:p-8 space-y-6">
-              <div className="flex justify-between items-end border-b border-white/10 pb-4">
+            <div className="lg:col-span-6 bg-[#05070A]/90 border border-[#D4AF37]/30 rounded-2xl p-6 sm:p-8 space-y-6">
+              <div className="flex justify-between items-end border-b border-[#D4AF37]/20 pb-4">
                 <div>
-                  <span className="text-xs text-slate-400 font-medium">Your Selected Rate</span>
-                  <div className="text-3xl font-extrabold text-white">${price}</div>
+                  <span className="text-xs text-slate-400 font-medium">Selected Tier Rate</span>
+                  <div className="text-3xl font-serif font-bold text-white">${price}</div>
                 </div>
                 <span className="text-xs text-slate-400 font-medium capitalize">
                   Per {calcCycle === 'monthly' ? 'Month' : 'Year'}
@@ -348,26 +483,26 @@ export default function HomePage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
-                    <Heart className="w-4 h-4 text-rose-400" />
-                    <span className="text-slate-300">Direct to Chosen Charity:</span>
+                    <Heart className="w-4 h-4 text-[#D4AF37]" />
+                    <span className="text-slate-300 font-light">Direct to Chosen Charity:</span>
                   </div>
-                  <span className="font-bold text-emerald-400 text-base">${charityImpact}</span>
+                  <span className="font-bold text-[#F5E6AB] text-base font-mono">${charityImpact}</span>
                 </div>
 
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
-                    <Trophy className="w-4 h-4 text-amber-400" />
-                    <span className="text-slate-300">Monthly Draw Prize Pool:</span>
+                    <Trophy className="w-4 h-4 text-[#D4AF37]" />
+                    <span className="text-slate-300 font-light">Monthly Jackpot Pool:</span>
                   </div>
-                  <span className="font-bold text-amber-400 text-base">${prizePoolShare}</span>
+                  <span className="font-bold text-[#F5E6AB] text-base font-mono">${prizePoolShare}</span>
                 </div>
 
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-slate-400" />
-                    <span className="text-slate-300">Operations & Verification:</span>
+                    <span className="text-slate-300 font-light">Verification & Operations:</span>
                   </div>
-                  <span className="font-bold text-slate-300 text-base">
+                  <span className="font-bold text-slate-300 text-base font-mono">
                     ${(price - parseFloat(charityImpact) - parseFloat(prizePoolShare)).toFixed(2)}
                   </span>
                 </div>
@@ -376,10 +511,10 @@ export default function HomePage() {
               {isSubscribed ? (
                 <Link
                   href="/dashboard"
-                  className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2"
+                  className="w-full py-3.5 btn-gold-primary text-slate-950 font-bold rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2"
                 >
-                  <Trophy className="w-4 h-4 text-amber-300" />
-                  <span>Manage Subscription & Pledge in Dashboard</span>
+                  <Trophy className="w-4 h-4 text-slate-950" />
+                  <span>MANAGE PLEDGE IN DASHBOARD</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               ) : (
@@ -388,9 +523,9 @@ export default function HomePage() {
                     if (!authUser) setAuthModalOpen(true);
                     else setSubModalOpen(true);
                   }}
-                  className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2"
+                  className="w-full py-3.5 btn-gold-primary text-slate-950 font-bold rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2"
                 >
-                  <span>Lock In This Impact & Subscribe</span>
+                  <span>LOCK IN THIS PLEDGE & JOIN</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               )}
@@ -399,18 +534,18 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 4. LIVE DRAWS & JACKPOT ROLLOVER SHOWCASE (§ 06 & § 07) */}
+      {/* 4. LIVE DRAWS & JACKPOT ROLLOVER SHOWCASE */}
       <section id="draws" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <span className="text-xs font-bold tracking-widest text-orange-400 uppercase">
+            <span className="text-xs font-bold tracking-widest text-[#D4AF37] uppercase">
               {t('draw_section_tag')}
             </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white mt-1">
+            <h2 className="text-3xl sm:text-4xl font-serif font-bold text-white mt-1">
               {t('draw_section_title')}
             </h2>
           </div>
-          <div className="text-xs text-slate-400 max-w-md">
+          <div className="text-xs text-slate-400 font-light max-w-md">
             {t('draw_section_desc')}
           </div>
         </div>
@@ -418,25 +553,25 @@ export default function HomePage() {
         {/* Two-card display: Last Month vs Next Month */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Published Past Draw */}
-          <div className="glass-panel p-6 sm:p-8 rounded-3xl space-y-6 border border-white/10">
+          <div className="glass-panel p-6 sm:p-8 rounded-3xl space-y-6 border border-[#D4AF37]/20">
             <div className="flex justify-between items-start">
               <div>
-                <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   {t('pub_results')}
                 </span>
-                <h3 className="text-xl font-bold text-white mt-0.5">{publishedDraw?.name}</h3>
-                <div className="text-xs text-slate-400 mt-0.5">
+                <h3 className="text-xl font-serif font-bold text-white mt-0.5">{publishedDraw?.name}</h3>
+                <div className="text-xs text-slate-400 mt-0.5 font-light">
                   Conducted on {publishedDraw?.drawDate.split('T')[0]} · {publishedDraw?.totalSubscribersEntered.toLocaleString()} Golfers Entered
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold">
+              <span className="px-3 py-1 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#F5E6AB] text-xs font-bold">
                 Completed
               </span>
             </div>
 
             {/* Winning numbers display */}
             <div>
-              <span className="text-xs text-slate-400 font-medium block mb-2">
+              <span className="text-xs text-slate-400 font-medium block mb-3">
                 {t('winning_numbers')}
               </span>
               <div className="flex gap-2.5 flex-wrap">
@@ -449,88 +584,79 @@ export default function HomePage() {
             </div>
 
             {/* Tier breakdown */}
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/10 text-xs">
-              <div className="p-3 rounded-xl bg-white/5">
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/10 text-xs font-mono">
+              <div className="p-3 rounded-xl bg-white/5 border border-white/5">
                 <div className="text-slate-400 text-[10px]">{t('match_5')}</div>
-                <div className="text-amber-400 font-bold mt-0.5">
+                <div className="text-[#F5E6AB] font-bold mt-0.5">
                   ${publishedDraw?.jackpotPool.toLocaleString()}
                 </div>
-                <div className="text-[10px] text-orange-400 mt-1 font-semibold">{t('rolled_over')}</div>
+                <div className="text-[10px] text-[#D4AF37] mt-1 font-semibold">{t('rolled_over')}</div>
               </div>
 
-              <div className="p-3 rounded-xl bg-white/5">
+              <div className="p-3 rounded-xl bg-white/5 border border-white/5">
                 <div className="text-slate-400 text-[10px]">{t('match_4')}</div>
-                <div className="text-emerald-400 font-bold mt-0.5">
+                <div className="text-white font-bold mt-0.5">
                   ${publishedDraw?.tier4Pool.toLocaleString()}
                 </div>
-                <div className="text-[10px] text-slate-300 mt-1">Sarah J. ($5,600)</div>
+                <div className="text-[10px] text-slate-400 mt-1">Sarah J. ($5,600)</div>
               </div>
 
-              <div className="p-3 rounded-xl bg-white/5">
+              <div className="p-3 rounded-xl bg-white/5 border border-white/5">
                 <div className="text-slate-400 text-[10px]">{t('match_3')}</div>
-                <div className="text-emerald-400 font-bold mt-0.5">
+                <div className="text-white font-bold mt-0.5">
                   ${publishedDraw?.tier3Pool.toLocaleString()}
                 </div>
-                <div className="text-[10px] text-slate-300 mt-1">4 Winners ($2,000 ea)</div>
+                <div className="text-[10px] text-slate-400 mt-1">4 Winners ($2k ea)</div>
               </div>
-            </div>
-
-            <div className="p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 text-xs text-orange-300 flex items-center gap-2">
-              <Flame className="w-4 h-4 shrink-0" />
-              <span>
-                <strong>Rollover in effect:</strong> ${publishedDraw?.rolloverToNext.toLocaleString()} was added directly into the March 2026 Jackpot pool!
-              </span>
             </div>
           </div>
 
           {/* Upcoming Scheduled Draw */}
-          <div className="glass-panel p-6 sm:p-8 rounded-3xl space-y-6 border border-orange-500/30 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
-
+          <div className="glass-panel p-6 sm:p-8 rounded-3xl space-y-6 border border-[#D4AF37]/40 relative overflow-hidden bg-gradient-to-b from-[#0e131d] to-[#05070A]">
             <div className="flex justify-between items-start">
               <div>
-                <span className="text-[11px] font-bold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Flame className="w-3.5 h-3.5" /> {t('next_draw')}
+                <span className="text-[11px] font-bold text-[#D4AF37] uppercase tracking-wider flex items-center gap-1.5">
+                  <Flame className="w-3.5 h-3.5 text-[#D4AF37]" /> {t('next_draw')}
                 </span>
-                <h3 className="text-xl font-bold text-white mt-0.5">{upcomingDraw?.name}</h3>
-                <div className="text-xs text-slate-400 mt-0.5">
-                  Draw Scheduled for {upcomingDraw?.drawDate.split('T')[0]} · Cadence: Monthly
+                <h3 className="text-xl font-serif font-bold text-white mt-0.5">{upcomingDraw?.name}</h3>
+                <div className="text-xs text-slate-400 mt-0.5 font-light">
+                  Scheduled for {upcomingDraw?.drawDate.split('T')[0]} · Cadence: Monthly
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-orange-500/20 text-orange-300 text-xs font-bold pulse-glow">
+              <span className="px-3 py-1 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#F5E6AB] text-xs font-bold">
                 Live Entries Open
               </span>
             </div>
 
             {/* Jackpot highlight */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30">
-              <span className="text-xs text-amber-300 font-semibold uppercase tracking-wider">
+            <div className="p-5 rounded-2xl bg-black/60 border border-[#D4AF37]/30">
+              <span className="text-xs text-[#D4AF37] font-bold uppercase tracking-wider">
                 {t('total_jackpot')}
               </span>
-              <div className="text-3xl sm:text-4xl font-black text-gradient-gold mt-1">
+              <div className="text-3xl sm:text-4xl font-serif font-bold gold-text mt-1">
                 ${upcomingDraw?.jackpotPool.toLocaleString()}
               </div>
-              <div className="text-xs text-slate-300 mt-2 leading-relaxed">
-                Base pool ($19,400) + ${upcomingDraw?.rolloverFromPrevious.toLocaleString()} rolled over from February because no one claimed all 5 numbers!
+              <div className="text-xs text-slate-300 mt-2 font-light leading-relaxed">
+                Includes ${upcomingDraw?.rolloverFromPrevious.toLocaleString()} rolled over from previous draw because no golfer matched all 5 numbers!
               </div>
             </div>
 
             {/* Estimated Tiers */}
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-white/5">
+            <div className="grid grid-cols-2 gap-3 text-xs font-mono">
+              <div className="p-3 rounded-xl bg-white/5 border border-white/5">
                 <span className="text-slate-400 text-[10px]">{t('match_4')}</span>
                 <div className="text-white font-bold mt-0.5">
                   ${upcomingDraw?.tier4Pool.toLocaleString()}
                 </div>
-                <div className="text-[10px] text-slate-400 mt-0.5">Match 4 of 5 numbers</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Match 4 numbers</div>
               </div>
 
-              <div className="p-3 rounded-xl bg-white/5">
+              <div className="p-3 rounded-xl bg-white/5 border border-white/5">
                 <span className="text-slate-400 text-[10px]">{t('match_3')}</span>
                 <div className="text-white font-bold mt-0.5">
                   ${upcomingDraw?.tier3Pool.toLocaleString()}
                 </div>
-                <div className="text-[10px] text-slate-400 mt-0.5">Match 3 of 5 numbers</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Match 3 numbers</div>
               </div>
             </div>
 
@@ -538,15 +664,12 @@ export default function HomePage() {
               <div className="space-y-2">
                 <Link
                   href="/dashboard"
-                  className="w-full py-3.5 bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold rounded-xl text-sm transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                  className="w-full py-3.5 btn-gold-primary text-slate-950 font-bold rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2"
                 >
-                  <Trophy className="w-4 h-4 text-amber-300" />
-                  <span>View Active Entry & Golfer Dashboard</span>
+                  <Trophy className="w-4 h-4 text-slate-950" />
+                  <span>VIEW ACTIVE ENTRY & DASHBOARD</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
-                <p className="text-[11px] text-center text-emerald-400 font-semibold">
-                  ✓ Active Subscription! Your latest 5 rounds are qualified for this draw.
-                </p>
               </div>
             ) : (
               <button
@@ -554,7 +677,7 @@ export default function HomePage() {
                   if (!authUser) setAuthModalOpen(true);
                   else setSubModalOpen(true);
                 }}
-                className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
+                className="w-full py-3.5 btn-gold-primary text-slate-950 font-bold rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2"
               >
                 <span>{t('btn_subscribe_draw')}</span>
                 <ArrowRight className="w-4 h-4" />
@@ -564,20 +687,20 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 5. CHARITY SPOTLIGHT & UPCOMING EVENTS (§ 08.2: "Featured charity section on the homepage") */}
+      {/* 5. CHARITY SPOTLIGHT & UPCOMING EVENTS */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <span className="text-xs font-bold tracking-widest text-rose-400 uppercase">
+            <span className="text-xs font-bold tracking-widest text-[#D4AF37] uppercase">
               {t('charity_section_tag')}
             </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white mt-1">
+            <h2 className="text-3xl sm:text-4xl font-serif font-bold text-white mt-1">
               {t('charity_section_title')}
             </h2>
           </div>
           <Link
             href="/charities"
-            className="text-xs font-bold text-orange-400 hover:text-orange-300 flex items-center gap-1 self-start md:self-auto"
+            className="text-xs font-bold text-[#D4AF37] hover:underline flex items-center gap-1 self-start md:self-auto"
           >
             <span>{t('view_all_charities')}</span>
             <ChevronRight className="w-4 h-4" />
@@ -585,224 +708,236 @@ export default function HomePage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {spotlightCharities.map((charity) => (
-            <div
-              key={charity.id}
-              className="glass-panel rounded-3xl overflow-hidden border border-white/10 hover:border-white/20 transition flex flex-col justify-between group"
-            >
-              <div className="relative h-48 w-full overflow-hidden">
-                <img
-                  src={charity.imageUrl}
-                  alt={charity.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#121824] via-[#121824]/40 to-transparent" />
-                <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-[10px] font-semibold">
-                  {charity.category}
-                </span>
-                <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-rose-500/80 text-white text-[10px] font-bold flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" /> Spotlight
-                </span>
-              </div>
+          {spotlightCharities.map((charity, index) => {
+            const bgImages = ['/images/golf_bg_2.jpg', '/images/golf_bg_3.jpg', '/images/golf_bg_4.jpg'];
+            const bgImage = bgImages[index % bgImages.length];
 
-              <div className="p-6 space-y-4 flex-1 flex flex-col justify-between">
-                <div className="space-y-2">
-                  <h3 className="text-lg font-bold text-white group-hover:text-orange-400 transition">
-                    {charity.name}
-                  </h3>
-                  <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">
-                    {charity.tagline}
-                  </p>
+            return (
+              <div
+                key={charity.id}
+                className="glass-panel rounded-3xl overflow-hidden border border-[#D4AF37]/20 hover:border-[#D4AF37]/50 transition duration-500 flex flex-col justify-between group"
+              >
+                <div className="relative h-48 w-full overflow-hidden">
+                  <img
+                    src={bgImage}
+                    alt={charity.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#05070A] via-[#05070A]/50 to-transparent" />
+                  <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-[#05070A]/80 backdrop-blur-md border border-[#D4AF37]/30 text-[#F5E6AB] text-[10px] font-bold uppercase tracking-wider">
+                    {charity.category}
+                  </span>
                 </div>
 
-                <div className="space-y-3 pt-3 border-t border-white/10">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Total Funds Raised:</span>
-                    <span className="font-bold text-emerald-400">
-                      ${charity.totalRaised.toLocaleString()}
-                    </span>
+                <div className="p-6 space-y-4 flex-1 flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-serif font-bold text-white group-hover:text-[#D4AF37] transition">
+                      {charity.name}
+                    </h3>
+                    <p className="text-xs text-slate-300 font-light line-clamp-2 leading-relaxed">
+                      {charity.tagline}
+                    </p>
                   </div>
 
-                  {charity.upcomingEvents.length > 0 && (
-                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-[11px] space-y-1">
-                      <div className="text-slate-400 flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-orange-400" />
-                        Next Charity Golf Event:
-                      </div>
-                      <div className="font-semibold text-white truncate">
-                        {charity.upcomingEvents[0].title}
-                      </div>
-                      <div className="text-[10px] text-slate-400">
-                        {charity.upcomingEvents[0].date} · {charity.upcomingEvents[0].location}
-                      </div>
+                  <div className="space-y-3 pt-3 border-t border-white/10">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-400 font-light">Total Funds Raised:</span>
+                      <span className="font-bold text-[#F5E6AB] font-mono">
+                        ${charity.totalRaised.toLocaleString()}
+                      </span>
                     </div>
-                  )}
 
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <button
-                      onClick={() => {
-                        setSelectedDonationCharityId(charity.id);
-                        setDonationModalOpen(true);
-                      }}
-                      className="py-2 px-3 rounded-xl bg-white/5 hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/30 text-rose-300 text-xs font-semibold transition text-center"
-                    >
-                      Give Direct
-                    </button>
-
-                    {isSubscribed ? (
-                      <Link
-                        href="/dashboard"
-                        className="py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold transition text-center flex items-center justify-center gap-1"
-                      >
-                        Manage Pledge
-                      </Link>
-                    ) : (
+                    <div className="grid grid-cols-2 gap-2 pt-1">
                       <button
                         onClick={() => {
-                          if (!authUser) setAuthModalOpen(true);
-                          else setSubModalOpen(true);
+                          setSelectedDonationCharityId(charity.id);
+                          setDonationModalOpen(true);
                         }}
-                        className="py-2 px-3 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 text-xs font-bold transition text-center"
+                        className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-[#D4AF37]/10 border border-white/10 hover:border-[#D4AF37]/30 text-slate-200 text-xs font-semibold transition text-center"
                       >
-                        Pledge via Golf
+                        Give Direct
                       </button>
-                    )}
+
+                      {isSubscribed ? (
+                        <Link
+                          href="/dashboard"
+                          className="py-2.5 px-3 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#F5E6AB] text-xs font-bold transition text-center flex items-center justify-center gap-1"
+                        >
+                          Manage Pledge
+                        </Link>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (!authUser) setAuthModalOpen(true);
+                            else setSubModalOpen(true);
+                          }}
+                          className="py-2.5 px-3 rounded-xl btn-gold-primary text-slate-950 text-xs font-bold transition text-center"
+                        >
+                          Pledge via Golf
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
-      {/* 6. SUBSCRIPTION PRICING PLANS (§ 04) */}
+      {/* 6. SUBSCRIPTION PRICING PLANS */}
       <section id="pricing" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         <div className="text-center max-w-2xl mx-auto space-y-3">
-          <span className="text-xs font-bold tracking-widest text-orange-400 uppercase">
-            § 04 · Subscription & Pricing
+          <span className="text-xs font-bold tracking-widest text-[#D4AF37] uppercase">
+            MEMBERSHIP TIERS & ELIGIBILITY
           </span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
-            Transparent Membership. Compelling Rewards.
+          <h2 className="text-3xl sm:text-4xl font-serif font-bold text-white">
+            Transparent Access. Exclusive Privileges.
           </h2>
-          <p className="text-sm text-slate-400">
-            Cancel anytime. Every tier includes rolling 5-score entry, partner charity allocations, and full draw eligibility.
+          <p className="text-sm text-slate-300 font-light">
+            Every tier includes 5-score Stableford tracking, charity pledge allocation, and guaranteed jackpot draw entry.
           </p>
         </div>
 
+        {/* User Active Plan Summary Banner */}
+        {activePlan && (
+          <div className="max-w-4xl mx-auto p-6 rounded-3xl bg-[#05070A] border border-[#D4AF37]/40 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#D4AF37] flex items-center justify-center font-bold">
+                <Crown className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest">YOUR CURRENT ACTIVE MEMBERSHIP</span>
+                <h4 className="text-lg font-serif font-bold text-white">{activePlan.name} (${activePlan.price}/{activePlan.interval})</h4>
+                <p className="text-xs text-slate-400 font-light">This plan is active on your account. Non-owned plans are shown below.</p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard"
+              className="px-6 py-3 rounded-xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#F5E6AB] text-xs font-bold hover:bg-[#D4AF37]/30 transition shrink-0"
+            >
+              Manage in Dashboard
+            </Link>
+          </div>
+        )}
+
+        {/* Pricing Cards Grid - Only Eligible Plans Available to Purchase */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {/* Monthly Card */}
-          <div className="glass-panel p-8 rounded-3xl space-y-6 border border-white/10 flex flex-col justify-between">
-            <div className="space-y-4">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Monthly Membership
-              </span>
-              <div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-white">$19</span>
-                  <span className="text-xs text-slate-400">/ month</span>
+          {(!activePlan || ((activePlan.billingCycle || activePlan.interval) !== 'monthly' && activePlan.id !== 'plan-monthly')) ? (
+            <div className="glass-panel p-8 rounded-3xl space-y-6 border border-[#D4AF37]/30 flex flex-col justify-between">
+              <div className="space-y-4">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Monthly Membership
+                </span>
+                <div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-serif font-bold text-white">$19</span>
+                    <span className="text-xs text-slate-400">/ month</span>
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1 font-light">Flexible month-to-month billing.</div>
                 </div>
-                <div className="text-xs text-slate-400 mt-1">Flexible month-to-month billing.</div>
+
+                <ul className="space-y-3 text-xs text-slate-300 font-light pt-4 border-t border-white/10">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-[#D4AF37]" />
+                    <span>Entry into all 12 monthly draws each year</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-[#D4AF37]" />
+                    <span>Customizable charity pledge (10% to 50%)</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-[#D4AF37]" />
+                    <span>Rolling 5-score Stableford tracking (1–45)</span>
+                  </li>
+                </ul>
               </div>
 
-              <ul className="space-y-3 text-xs text-slate-300 pt-4 border-t border-white/10">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Entry into all 12 monthly draws each year</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Customizable charity pledge (min. 10% to 50%)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Rolling 5-score Stableford tracking (1–45)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Eligible for 5-match, 4-match & 3-match payouts</span>
-                </li>
-              </ul>
-            </div>
-
-            {isSubscribed ? (
-              <Link
-                href="/dashboard"
-                className="w-full py-3.5 rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-center font-bold text-sm transition block"
-              >
-                Active Member (Manage in Dashboard)
-              </Link>
-            ) : (
               <button
                 onClick={() => {
+                  setSubModalCycle('monthly');
                   if (!authUser) setAuthModalOpen(true);
                   else setSubModalOpen(true);
                 }}
-                className="w-full py-3.5 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition"
+                className="w-full py-3.5 rounded-2xl btn-gold-primary text-slate-950 font-bold text-sm transition shadow-lg"
               >
-                Choose Monthly Plan
+                Choose Monthly Plan ($19)
               </button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="glass-panel p-8 rounded-3xl space-y-4 border border-[#D4AF37]/20 opacity-60 flex flex-col justify-between">
+              <div>
+                <span className="text-xs font-bold text-[#D4AF37] uppercase">Monthly Membership</span>
+                <div className="text-3xl font-serif font-bold text-white mt-2">$19 / mo</div>
+                <div className="text-xs text-slate-400 mt-2 font-light">Already active on your account. Duplicate purchases are restricted.</div>
+              </div>
+              <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-xs text-[#F5E6AB] text-center font-bold">
+                ✓ Currently Active Plan
+              </div>
+            </div>
+          )}
 
           {/* Annual Card */}
-          <div className="glass-panel p-8 rounded-3xl space-y-6 border border-amber-500/40 relative overflow-hidden flex flex-col justify-between shadow-2xl shadow-amber-500/10">
-            <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-extrabold text-[10px] uppercase tracking-wider">
-              Most Popular · 2 Months Free
-            </div>
-
-            <div className="space-y-4">
-              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-                Annual Membership
-              </span>
-              <div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-white">$190</span>
-                  <span className="text-xs text-slate-400">/ year</span>
-                </div>
-                <div className="text-xs text-emerald-400 mt-1">
-                  Save 17% (Equivalent to just $15.83 / month)
-                </div>
+          {(!activePlan || ((activePlan.billingCycle || activePlan.interval) !== 'yearly' && activePlan.id !== 'plan-yearly')) ? (
+            <div className="glass-panel p-8 rounded-3xl space-y-6 border border-[#D4AF37]/50 relative overflow-hidden flex flex-col justify-between shadow-2xl bg-gradient-to-b from-[#0e131d] to-[#05070A]">
+              <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-[#D4AF37] text-slate-950 font-extrabold text-[10px] uppercase tracking-wider">
+                Most Popular · 2 Months Free
               </div>
 
-              <ul className="space-y-3 text-xs text-slate-300 pt-4 border-t border-white/10">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-amber-400" />
-                  <span className="font-semibold text-white">Includes 2 months free per year</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-amber-400" />
-                  <span>Automatic rollover ticket preservation</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-amber-400" />
-                  <span>Direct charity donation impact boosted</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-amber-400" />
-                  <span>Fast-track score verification and priority payout</span>
-                </li>
-              </ul>
-            </div>
+              <div className="space-y-4">
+                <span className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider">
+                  Annual Membership
+                </span>
+                <div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-serif font-bold text-white">$190</span>
+                    <span className="text-xs text-slate-400">/ year</span>
+                  </div>
+                  <div className="text-xs text-amber-200/90 mt-1 font-light">
+                    Save 17% (Equivalent to just $15.83 / month)
+                  </div>
+                </div>
 
-            {isSubscribed ? (
-              <Link
-                href="/dashboard"
-                className="w-full py-3.5 rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-center font-bold text-sm transition block"
-              >
-                Active Member (Manage in Dashboard)
-              </Link>
-            ) : (
+                <ul className="space-y-3 text-xs text-slate-300 font-light pt-4 border-t border-white/10">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-[#D4AF37]" />
+                    <span className="font-semibold text-white">Includes 2 months free per year</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-[#D4AF37]" />
+                    <span>Automatic rollover ticket preservation</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-[#D4AF37]" />
+                    <span>Priority scorecard verification & payout</span>
+                  </li>
+                </ul>
+              </div>
+
               <button
                 onClick={() => {
+                  setSubModalCycle('yearly');
                   if (!authUser) setAuthModalOpen(true);
                   else setSubModalOpen(true);
                 }}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-extrabold text-sm transition shadow-lg shadow-orange-500/25"
+                className="w-full py-3.5 rounded-2xl btn-gold-primary text-slate-950 font-bold text-sm transition shadow-lg"
               >
                 Get Annual Access ($190)
               </button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="glass-panel p-8 rounded-3xl space-y-4 border border-[#D4AF37]/20 opacity-60 flex flex-col justify-between">
+              <div>
+                <span className="text-xs font-bold text-[#D4AF37] uppercase">Annual Membership</span>
+                <div className="text-3xl font-serif font-bold text-white mt-2">$190 / yr</div>
+                <div className="text-xs text-slate-400 mt-2 font-light">Already active on your account. Duplicate purchases are restricted.</div>
+              </div>
+              <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-xs text-[#F5E6AB] text-center font-bold">
+                ✓ Currently Active Plan
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -811,13 +946,19 @@ export default function HomePage() {
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
         initialMode="login"
-        onNeedSubscribe={() => setSubModalOpen(true)}
+        requestedCycle={subModalCycle}
+        onNeedSubscribe={(cycle) => {
+          if (cycle) setSubModalCycle(cycle);
+          setSubModalOpen(true);
+        }}
       />
 
       <SubscriptionModal
         isOpen={subModalOpen}
+        initialCycle={subModalCycle}
         onClose={() => setSubModalOpen(false)}
         onSuccess={() => {
+          fetchSubscriptionStatus();
           window.location.href = '/dashboard';
         }}
       />

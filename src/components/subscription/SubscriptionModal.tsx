@@ -1,64 +1,120 @@
 'use client';
 
-import { useState } from 'react';
-import { getCharities, getCurrentUser, updateUser } from '@/lib/storage';
+import { useState, useEffect } from 'react';
+import { getCharities, updateUser } from '@/lib/storage';
 import { useAuth } from '@/context/AuthContext';
-import { BillingCycle, Charity, User } from '@/types';
-import { X, Check, Heart, Trophy, ShieldCheck, Sparkles, CreditCard, Lock } from 'lucide-react';
+import { BillingCycle, Charity } from '@/types';
+import { X, Check, Heart, Trophy, ShieldCheck, Sparkles, CreditCard, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  initialCycle?: BillingCycle;
 }
 
-export default function SubscriptionModal({ isOpen, onClose, onSuccess }: SubscriptionModalProps) {
-  const { user, refreshUser } = useAuth();
-  const currentIsYearly = user?.billingCycle === 'yearly';
+interface PlanOption {
+  id: string;
+  name: string;
+  billingCycle: 'monthly' | 'yearly';
+  price: number;
+  formattedPrice: string;
+  description: string;
+  badge?: string;
+}
 
-  // If user already has yearly active, default to monthly so they can switch to 1 month
-  const [cycle, setCycle] = useState<BillingCycle>(currentIsYearly ? 'monthly' : (user?.billingCycle || 'monthly'));
+export default function SubscriptionModal({ isOpen, onClose, onSuccess, initialCycle }: SubscriptionModalProps) {
+  const { user, refreshUser } = useAuth();
+  
+  const [currentPlan, setCurrentPlan] = useState<any>(null);
+  const [eligiblePlans, setEligiblePlans] = useState<PlanOption[]>([]);
+  const [selectedCycle, setSelectedCycle] = useState<BillingCycle>(initialCycle || 'monthly');
   const [charityId, setCharityId] = useState<string>(user?.charityId || 'charity-1');
-  const [charityPct, setCharityPct] = useState<number>(user?.charityContributionPct || 15); // Minimum 10%
+  const [charityPct, setCharityPct] = useState<number>(user?.charityContributionPct || 15);
   const [cardNumber, setCardNumber] = useState('4242 •••• •••• 4242');
   const [expiry, setExpiry] = useState('12/28');
   const [cvc, setCvc] = useState('888');
   const [isProcessing, setIsProcessing] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const charities = getCharities();
   const selectedCharity = charities.find((c) => c.id === charityId) || charities[0];
 
+  useEffect(() => {
+    if (initialCycle) {
+      setSelectedCycle(initialCycle);
+    }
+  }, [initialCycle, isOpen]);
+
+  // Fetch server-enforced eligible plans on open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchServerPlans = async () => {
+      try {
+        const res = await fetch('/api/user/subscription', { cache: 'no-store' });
+        const data = await res.json();
+        if (data.success) {
+          setCurrentPlan(data.currentPlan);
+          setEligiblePlans(data.eligiblePlans || []);
+
+          if (initialCycle) {
+            setSelectedCycle(initialCycle);
+          } else if (data.currentPlan && data.currentPlan.billingCycle) {
+            setSelectedCycle(data.currentPlan.billingCycle);
+          } else if (data.eligiblePlans && data.eligiblePlans.length > 0) {
+            setSelectedCycle(data.eligiblePlans[0].billingCycle);
+          }
+        }
+      } catch (err) {
+        console.error('[SubscriptionModal Fetch Error]:', err);
+      }
+    };
+
+    fetchServerPlans();
+  }, [isOpen, initialCycle]);
+
   if (!isOpen) return null;
 
-  const basePrice = cycle === 'monthly' ? 19 : 190;
-  const monthlyEquivalent = cycle === 'monthly' ? 19 : 15.83;
+  const activeCycle = selectedCycle;
+  const basePrice = activeCycle === 'monthly' ? 19 : 190;
   const charityAmount = (basePrice * (charityPct / 100)).toFixed(2);
-  const prizePoolAmount = (basePrice * 0.5).toFixed(2); // 50% contributes directly to draws
+  const prizePoolAmount = (basePrice * 0.5).toFixed(2);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
+    setErrorMessage(null);
 
     try {
       const res = await fetch('/api/user/subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          billingCycle: cycle,
+          billingCycle: activeCycle,
           charityId,
           charityContributionPct: charityPct,
           subscriptionStatus: 'active',
         }),
       });
       const resData = await res.json();
-      if (resData.success && resData.user) {
+
+      if (!resData.success) {
+        setErrorMessage(resData.message || 'Subscription update failed.');
+        setIsProcessing(false);
+        return;
+      }
+
+      if (resData.user) {
         updateUser(resData.user);
       }
       await refreshUser();
-    } catch {
-      // ignore
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Network error updating subscription.');
+      setIsProcessing(false);
+      return;
     }
 
     setIsProcessing(false);
@@ -66,13 +122,13 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
 
     try {
       confetti({
-        particleCount: 80,
-        spread: 70,
+        particleCount: 90,
+        spread: 80,
         origin: { y: 0.6 },
-        colors: ['#f97316', '#fbbf24', '#10b981', '#ffffff'],
+        colors: ['#D4AF37', '#F5E6AB', '#C5A059', '#FFFFFF'],
       });
     } catch {
-      // ignore in environments without canvas
+      // ignore
     }
 
     setTimeout(() => {
@@ -83,8 +139,9 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-xl bg-[#121724] border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl text-slate-200 max-h-[92vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn">
+      <div className="relative w-full max-w-xl bg-[#0B0E16] border border-[#D4AF37]/30 rounded-3xl p-6 md:p-8 shadow-2xl text-slate-100 max-h-[92vh] overflow-y-auto">
+        {/* Close button */}
         <button
           onClick={onClose}
           className="absolute top-5 right-5 p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition"
@@ -94,116 +151,116 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
 
         {completed ? (
           <div className="text-center py-10 space-y-4">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/30">
+            <div className="w-16 h-16 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] flex items-center justify-center mx-auto border border-[#D4AF37]/40 shadow-xl">
               <Check className="w-8 h-8 stroke-[3]" />
             </div>
-            <h3 className="text-2xl font-bold text-white">Subscription Updated!</h3>
-            <p className="text-slate-300 text-sm max-w-md mx-auto">
-              Your plan has been updated to <span className="text-orange-400 font-bold">{cycle === 'monthly' ? '1 Month ($19/mo)' : '1 Year ($190/yr)'}</span> billing. {charityPct}% of your fee continues supporting <span className="text-orange-400 font-semibold">{selectedCharity?.name}</span>.
+            <h3 className="text-2xl font-bold font-serif text-gradient-gold">Subscription Verified!</h3>
+            <p className="text-slate-300 text-sm max-w-md mx-auto leading-relaxed">
+              Your membership is active under the <span className="text-[#D4AF37] font-bold">{activeCycle === 'monthly' ? '1 Month ($19/mo)' : '1 Year ($190/yr)'}</span> tier. {charityPct}% of your fee is directed to <span className="text-[#F3E5AB] font-semibold">{selectedCharity?.name}</span>.
             </p>
-            <div className="text-xs text-slate-400">Updating your profile & dashboard...</div>
+            <div className="text-xs text-slate-400 font-mono">Updating your private golfer command center...</div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <span className="text-[11px] font-bold tracking-widest text-orange-400 uppercase">
-                Digital Heroes Subscription Management
+              <span className="text-[11px] font-mono font-bold tracking-widest text-[#D4AF37] uppercase">
+                Digital Heroes Private Membership
               </span>
-              <h2 className="text-2xl font-bold text-white mt-1">
-                {currentIsYearly ? 'Switch to 1 Month Subscription' : 'Manage Subscription & Impact'}
+              <h2 className="text-2xl font-bold font-serif text-white mt-1">
+                {currentPlan ? 'Manage Subscription & Philanthropic Impact' : 'Select Membership Tier & Direct Impact'}
               </h2>
               <p className="text-slate-400 text-xs mt-1">
-                {currentIsYearly
-                  ? 'Your 1-Year plan is currently active. Select 1 Month ($19/mo) below to convert to monthly billing.'
-                  : 'Enter every monthly prize pool, record your scores, and back a cause you care about.'}
+                Enter every monthly championship draw, log rolling Stableford rounds, and fund verified charity partners.
               </p>
             </div>
 
-            {/* Current Active Plan Notice */}
-            {currentIsYearly && (
-              <div className="p-3.5 bg-amber-500/15 border border-amber-500/30 rounded-2xl text-amber-300 text-xs flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>
-                  <strong>Active Plan: 1 Year (Annual Subscription)</strong>. Click 1 Month below to switch.
-                </span>
+            {errorMessage && (
+              <div className="p-3.5 bg-rose-950/60 border border-rose-500/40 rounded-2xl text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{errorMessage}</span>
               </div>
             )}
 
-            {/* Plan selection: Monthly (1 Month) vs Yearly */}
-            <div className="grid grid-cols-2 gap-3">
-              <div
-                onClick={() => setCycle('monthly')}
-                className={`p-4 rounded-2xl border cursor-pointer transition ${
-                  cycle === 'monthly'
-                    ? 'border-orange-500 bg-orange-500/15 shadow-lg shadow-orange-500/20 ring-1 ring-orange-500'
-                    : 'border-white/10 bg-white/5 hover:border-white/20'
-                }`}
-              >
-                <div className="flex justify-between items-start">
-                  <span className="text-xs font-semibold text-slate-300">1 Month Plan (Monthly)</span>
-                  {cycle === 'monthly' && <Check className="w-4 h-4 text-orange-400" />}
+            {/* ACTIVE MEMBERSHIP SUMMARY AREA (If user currently holds a plan) */}
+            {currentPlan && (
+              <div className="p-4 rounded-2xl bg-[#141A28] border border-[#D4AF37]/40 space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
+                    YOUR CURRENT ACTIVE MEMBERSHIP
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] text-[10px] font-bold uppercase tracking-wider">
+                    ACTIVE MEMBER
+                  </span>
                 </div>
-                <div className="mt-2">
-                  <span className="text-2xl font-extrabold text-white">$19</span>
-                  <span className="text-xs text-slate-400"> / month</span>
+                <div className="flex justify-between items-baseline">
+                  <div className="text-lg font-bold font-serif text-white">{currentPlan.name}</div>
+                  <div className="text-sm font-bold text-[#F5E6AB]">{currentPlan.formattedPrice}</div>
                 </div>
-                <div className="text-[11px] text-orange-300 font-medium mt-1">
-                  {currentIsYearly ? '★ Click to switch to 1 Month' : 'Flexible 1-month billing, cancel anytime.'}
+                <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  Renews: {currentPlan.renewalDate ? currentPlan.renewalDate.split('T')[0] : 'Active'} · Auto-renewal enabled
                 </div>
               </div>
+            )}
 
-              {!currentIsYearly ? (
-                <div
-                  onClick={() => setCycle('yearly')}
-                  className={`p-4 rounded-2xl border cursor-pointer relative transition ${
-                    cycle === 'yearly'
-                      ? 'border-amber-500 bg-amber-500/15 shadow-lg shadow-amber-500/20 ring-1 ring-amber-500'
-                      : 'border-white/10 bg-white/5 hover:border-white/20'
-                  }`}
-                >
-                  <div className="absolute -top-2.5 right-4 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-[10px] font-bold text-black uppercase tracking-wider">
-                    Save 17%
-                  </div>
-                  <div className="flex justify-between items-start">
-                    <span className="text-xs font-semibold text-slate-300">1 Year Plan (Annual)</span>
-                    {cycle === 'yearly' && <Check className="w-4 h-4 text-amber-400" />}
-                  </div>
-                  <div className="mt-2">
-                    <span className="text-2xl font-extrabold text-white">$190</span>
-                    <span className="text-xs text-slate-400"> / year</span>
-                  </div>
-                  <div className="text-[11px] text-emerald-400 mt-1">Equivalent to $15.83/mo (2 months free).</div>
+            {/* ELIGIBLE PURCHASE PLANS LIST (Server-filtered: Previously purchased plan is completely hidden) */}
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-slate-300 font-serif">
+                {currentPlan ? 'Available Plan Tier Switches (Eligible Only)' : 'Choose Available Plan Tier'}
+              </label>
+
+              {eligiblePlans.length === 0 ? (
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-xs text-slate-400 text-center">
+                  You currently hold the highest available membership tier ({currentPlan?.name}).
                 </div>
               ) : (
-                <div className="p-4 rounded-2xl border border-white/10 bg-white/5 opacity-60 relative cursor-not-allowed">
-                  <div className="absolute -top-2.5 right-4 px-2 py-0.5 rounded-full bg-emerald-500 text-[10px] font-bold text-black uppercase tracking-wider">
-                    Currently Active
-                  </div>
-                  <div className="flex justify-between items-start">
-                    <span className="text-xs font-semibold text-slate-300">1 Year Plan (Annual)</span>
-                  </div>
-                  <div className="mt-2">
-                    <span className="text-2xl font-extrabold text-white">$190</span>
-                    <span className="text-xs text-slate-400"> / year</span>
-                  </div>
-                  <div className="text-[11px] text-slate-400 mt-1">Active subscription tier</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {eligiblePlans.map((plan) => {
+                    const isSelected = selectedCycle === plan.billingCycle;
+                    return (
+                      <div
+                        key={plan.id}
+                        onClick={() => setSelectedCycle(plan.billingCycle)}
+                        className={`p-4 rounded-2xl border cursor-pointer relative transition ${
+                          isSelected
+                            ? 'border-[#D4AF37] bg-[#D4AF37]/15 shadow-xl shadow-[#D4AF37]/15 ring-1 ring-[#D4AF37]'
+                            : 'border-white/10 bg-white/5 hover:border-white/20'
+                        }`}
+                      >
+                        {plan.badge && (
+                          <div className="absolute -top-2.5 right-4 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#D4AF37] to-[#F5E6AB] text-[9px] font-bold text-[#05070A] uppercase tracking-wider">
+                            {plan.badge}
+                          </div>
+                        )}
+                        <div className="flex justify-between items-start">
+                          <span className="text-xs font-semibold text-slate-200">{plan.name}</span>
+                          {isSelected && <Check className="w-4 h-4 text-[#D4AF37]" />}
+                        </div>
+                        <div className="mt-2">
+                          <span className="text-2xl font-extrabold text-white font-serif">{plan.formattedPrice.split(' ')[0]}</span>
+                          <span className="text-xs text-slate-400"> {plan.formattedPrice.split(' ').slice(1).join(' ')}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-1">{plan.description}</div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
 
-            {/* Charity Selection (§ 08.1: Users select a charity at signup) */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-200 mb-2 flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <Heart className="w-4 h-4 text-rose-400" />
-                  Select Your Charity Partner (§ 08.1)
+            {/* CHARITY PARTNER SELECTOR */}
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-slate-300 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-serif">
+                  <Heart className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  Select Partner Charity (§ 08.1)
                 </span>
-                <span className="text-[10px] text-slate-400">Directly funded every cycle</span>
+                <span className="text-[10px] text-slate-400 font-mono">100% Direct Allocation</span>
               </label>
               <select
                 value={charityId}
                 onChange={(e) => setCharityId(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-900/90 border border-white/15 rounded-xl text-sm focus:outline-none focus:border-orange-500 text-white"
+                className="w-full px-4 py-2.5 bg-[#070A12] border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-[#D4AF37]"
               >
                 {charities.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -211,22 +268,17 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
                   </option>
                 ))}
               </select>
-              {selectedCharity && (
-                <p className="text-[11px] text-slate-400 mt-1.5 line-clamp-2">
-                  {selectedCharity.tagline}
-                </p>
-              )}
             </div>
 
-            {/* Charity Contribution Percentage (§ 08.1: Minimum 10%, voluntarily increase) */}
+            {/* CHARITY PLEDGE SLIDER (10% to 50%) */}
             <div className="p-4 bg-white/5 border border-white/10 rounded-2xl space-y-3">
               <div className="flex justify-between items-center text-xs">
                 <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  Charity Pledge Percentage
+                  <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  Charity Pledge Allocation
                 </span>
-                <span className="text-sm font-bold text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-lg border border-orange-500/20">
-                  {charityPct}% of your subscription
+                <span className="text-xs font-bold text-[#D4AF37] bg-[#D4AF37]/10 px-2.5 py-0.5 rounded-lg border border-[#D4AF37]/30">
+                  {charityPct}% of Subscription
                 </span>
               </div>
 
@@ -237,43 +289,31 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
                 step="5"
                 value={charityPct}
                 onChange={(e) => setCharityPct(Number(e.target.value))}
-                className="w-full accent-orange-500 cursor-pointer"
+                className="w-full accent-[#D4AF37] cursor-pointer"
               />
 
-              <div className="flex justify-between text-[10px] text-slate-400">
-                <span>10% (PRD Minimum)</span>
-                <span>25%</span>
-                <span>50% (Heroic Tier)</span>
-              </div>
-
-              {/* Real-time Allocation breakdown */}
               <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/10 text-xs">
                 <div>
-                  <span className="text-slate-400 text-[11px]">Charity Impact:</span>
-                  <div className="font-bold text-emerald-400">
-                    ${charityAmount} / {cycle === 'monthly' ? 'month' : 'year'}
-                  </div>
+                  <span className="text-slate-400 text-[11px]">Monthly Charity Impact:</span>
+                  <div className="font-bold text-[#F5E6AB]">${charityAmount}</div>
                 </div>
                 <div>
                   <span className="text-slate-400 text-[11px]">Prize Pool Contribution:</span>
-                  <div className="font-bold text-amber-400">
-                    ${prizePoolAmount} / {cycle === 'monthly' ? 'month' : 'year'}
-                  </div>
+                  <div className="font-bold text-[#D4AF37]">${prizePoolAmount}</div>
                 </div>
               </div>
             </div>
 
-            {/* Simulated PCI-Compliant Stripe Payment (§ 04) - Only show card inputs if NOT already an active subscriber */}
+            {/* PAYMENT DETAILS (Only shown for fresh plan purchase or fallback) */}
             {!user || user.subscriptionStatus !== 'active' ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-xs text-slate-300 font-semibold">
-                  <span className="flex items-center gap-1.5">
-                    <CreditCard className="w-4 h-4 text-slate-400" />
-                    Payment Details (Stripe PCI-Compliant)
+                  <span className="flex items-center gap-1.5 font-serif">
+                    <CreditCard className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    Payment Details (Stripe Encrypted)
                   </span>
-                  <span className="flex items-center gap-1 text-[10px] text-emerald-400">
-                    <Lock className="w-3 h-3" />
-                    256-Bit Encrypted
+                  <span className="flex items-center gap-1 text-[10px] text-[#D4AF37]">
+                    <Lock className="w-3 h-3" /> 256-Bit Encrypted
                   </span>
                 </div>
 
@@ -282,7 +322,7 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
                     type="text"
                     value={cardNumber}
                     onChange={(e) => setCardNumber(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-900 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 font-mono text-white"
+                    className="w-full px-4 py-2.5 bg-[#070A12] border border-white/15 rounded-xl text-xs font-mono text-white"
                     placeholder="Card number"
                   />
                   <div className="grid grid-cols-2 gap-2">
@@ -290,50 +330,50 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
                       type="text"
                       value={expiry}
                       onChange={(e) => setExpiry(e.target.value)}
-                      className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 font-mono text-white"
+                      className="w-full px-4 py-2 bg-[#070A12] border border-white/15 rounded-xl text-xs font-mono text-white"
                       placeholder="MM/YY"
                     />
                     <input
                       type="text"
                       value={cvc}
                       onChange={(e) => setCvc(e.target.value)}
-                      className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 font-mono text-white"
+                      className="w-full px-4 py-2 bg-[#070A12] border border-white/15 rounded-xl text-xs font-mono text-white"
                       placeholder="CVC"
                     />
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between text-xs">
+              <div className="p-3.5 bg-[#D4AF37]/10 border border-[#D4AF37]/25 rounded-2xl flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <ShieldCheck className="w-4 h-4 text-[#D4AF37] shrink-0" />
                   <span className="text-slate-300">
-                    Active Payment Method: <strong className="text-white font-mono">•••• 4242</strong> (Stripe Verified)
+                    Payment Method on File: <strong className="text-white font-mono">•••• 4242</strong>
                   </span>
                 </div>
-                <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">AUTO-RENEWAL ACTIVE</span>
+                <span className="text-[10px] text-[#D4AF37] font-bold uppercase tracking-wider">VERIFIED</span>
               </div>
             )}
 
             <button
               type="submit"
               disabled={isProcessing}
-              className="w-full py-3.5 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-2xl text-sm transition shadow-xl shadow-orange-500/25 flex items-center justify-center gap-2"
+              className="w-full py-3.5 btn-gold-primary rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2"
             >
               {isProcessing ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Updating Your Subscription Settings...
+                  <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                  Processing Subscription Request...
                 </>
-              ) : user && user.subscriptionStatus === 'active' ? (
+              ) : currentPlan ? (
                 <>
                   <Check className="w-4 h-4 stroke-[3]" />
-                  Save & Update Plan to {cycle === 'monthly' ? '1 Month ($19/mo)' : '1 Year ($190/yr)'}
+                  Save & Update Plan Settings
                 </>
               ) : (
                 <>
                   <Trophy className="w-4 h-4" />
-                  Pay ${basePrice} & Activate Golf Hero Membership
+                  Pay ${basePrice} & Activate Membership
                 </>
               )}
             </button>

@@ -42,20 +42,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (pathname === '/admin/login') return;
-    const fetchAdminSession = async () => {
-      try {
-        const res = await fetch('/api/admin/session', { cache: 'no-store' });
-        const data = await res.json();
-        if (data.authenticated && data.user && data.user.role === 'admin') {
-          setAdminUser(data.user);
-        } else {
+    if (!adminUser) {
+      const fetchAdminSession = async () => {
+        try {
+          const res = await fetch('/api/admin/session', { cache: 'no-store' });
+          const data = await res.json();
+          if (data.authenticated && data.user && data.user.role === 'admin') {
+            setAdminUser(data.user);
+          } else {
+            router.push('/admin/login');
+          }
+        } catch {
           router.push('/admin/login');
         }
-      } catch {
-        router.push('/admin/login');
-      }
-    };
-    fetchAdminSession();
+      };
+      fetchAdminSession();
+    }
 
     // Check pending queues for nav badges
     const winners = getWinners();
@@ -63,7 +65,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     setPendingPayoutsCount(
       winners.filter((w) => w.verificationStatus === 'approved' && w.paymentStatus !== 'paid').length
     );
-  }, [pathname, router]);
+  }, [pathname, router, adminUser]);
 
   if (pathname === '/admin/login') {
     return <>{children}</>;

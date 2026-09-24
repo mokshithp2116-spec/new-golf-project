@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { GolfScore } from '@/types';
+import { addGolfScore, updateGolfScore, deleteGolfScore, getUserGolfScores } from '@/lib/storage';
 import {
   Target,
   Plus,
@@ -22,8 +23,10 @@ import {
 
 export default function MyScoresPage() {
   const { user } = useAuth();
-  const [scores, setScores] = useState<GolfScore[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [scores, setScores] = useState<GolfScore[]>(() => {
+    return typeof window !== 'undefined' && user?.id ? getUserGolfScores(user.id) : [];
+  });
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -40,15 +43,23 @@ export default function MyScoresPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/scores', { cache: 'no-store' });
+      const url = user?.id ? `/api/scores?userId=${encodeURIComponent(user.id)}` : '/api/scores';
+      const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
-      if (data.success && Array.isArray(data.scores)) {
+      if (data.success && Array.isArray(data.scores) && data.scores.length > 0) {
         setScores(data.scores);
+      } else if (user?.id) {
+        const localScores = getUserGolfScores(user.id);
+        setScores(localScores);
       } else {
         setScores([]);
       }
     } catch {
-      setError('Failed to load golf scores. Please try again.');
+      if (user?.id) {
+        setScores(getUserGolfScores(user.id));
+      } else {
+        setError('Failed to load golf scores. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -109,6 +120,7 @@ export default function MyScoresPage() {
         date: dateInput,
         courseName: courseInput || 'Local Course',
         notes: notesInput || '',
+        userId: user?.id,
       };
 
       const res = await fetch(endpoint, {
@@ -123,6 +135,15 @@ export default function MyScoresPage() {
         setError(data.message || 'Error saving score entry.');
         setIsSubmitting(false);
         return;
+      }
+
+      if (user?.id) {
+        if (editingScoreId) {
+          updateGolfScore(editingScoreId, scoreNum, dateInput, courseInput || 'Local Course', notesInput || '');
+        } else {
+          addGolfScore(user.id, scoreNum, dateInput, courseInput || 'Local Course', notesInput || '');
+        }
+        window.dispatchEvent(new Event('dh-storage-update'));
       }
 
       setSuccessMessage(editingScoreId ? 'Score updated successfully!' : 'Score round logged successfully!');
@@ -141,10 +162,17 @@ export default function MyScoresPage() {
     setSuccessMessage(null);
 
     try {
-      const res = await fetch(`/api/scores?id=${scoreId}`, { method: 'DELETE' });
+      const url = user?.id
+        ? `/api/scores?id=${scoreId}&userId=${encodeURIComponent(user.id)}`
+        : `/api/scores?id=${scoreId}`;
+      const res = await fetch(url, { method: 'DELETE' });
       const data = await res.json();
 
       if (data.success) {
+        if (user?.id) {
+          deleteGolfScore(scoreId);
+          window.dispatchEvent(new Event('dh-storage-update'));
+        }
         setSuccessMessage('Score deleted.');
         fetchScores();
       } else {
@@ -166,30 +194,30 @@ export default function MyScoresPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/25 text-orange-300 text-xs font-semibold mb-2">
-            <Target className="w-3.5 h-3.5 text-orange-400" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#121824] border border-[#D4AF37]/30 text-[#F5E6AB] text-xs font-semibold mb-2 uppercase tracking-wider">
+            <Target className="w-3.5 h-3.5 text-[#D4AF37]" />
             STABLEFORD GOLF SCORE LOG BOOK
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">My Golf Scores</h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <h1 className="text-3xl sm:text-4xl font-serif font-bold text-white tracking-tight">My Golf Scores</h1>
+          <p className="text-xs sm:text-sm text-slate-400 font-light mt-1">
             Log your rolling 5 official Stableford scores (1–45) to maintain monthly draw eligibility.
           </p>
         </div>
 
         <button
           onClick={handleOpenAdd}
-          className="px-5 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-2xl text-xs transition shadow-lg shadow-orange-500/25 flex items-center gap-2 self-start md:self-auto"
+          className="px-5 py-3 btn-gold-primary text-slate-950 font-bold rounded-2xl text-xs transition shadow-xl flex items-center gap-2 self-start md:self-auto uppercase tracking-wider"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 stroke-[3]" />
           <span>Log New Round</span>
         </button>
       </div>
 
       {/* Messages */}
       {successMessage && (
-        <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl text-emerald-300 text-xs flex items-center justify-between">
+        <div className="p-4 bg-[#D4AF37]/15 border border-[#D4AF37]/40 rounded-2xl text-[#F5E6AB] text-xs flex items-center justify-between">
           <div className="flex items-center gap-2 font-bold">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <CheckCircle2 className="w-4 h-4 text-[#D4AF37]" />
             <span>{successMessage}</span>
           </div>
           <button onClick={() => setSuccessMessage(null)} className="text-slate-400 hover:text-white">
@@ -199,7 +227,7 @@ export default function MyScoresPage() {
       )}
 
       {error && (
-        <div className="p-4 bg-rose-500/15 border border-rose-500/30 rounded-2xl text-rose-300 text-xs flex items-center justify-between">
+        <div className="p-4 bg-rose-950/60 border border-rose-500/40 rounded-2xl text-rose-300 text-xs flex items-center justify-between">
           <div className="flex items-center gap-2 font-bold">
             <AlertCircle className="w-4 h-4 text-rose-400" />
             <span>{error}</span>
@@ -213,41 +241,41 @@ export default function MyScoresPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Qualification Status */}
-        <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-1">
+        <div className="glass-panel p-5 rounded-2xl border border-[#D4AF37]/20 space-y-1">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">DRAW ELIGIBILITY</span>
           <div className="flex items-center justify-between mt-1">
-            <span className="text-2xl font-black text-white">{scores.length} / 5 Rounds</span>
+            <span className="text-2xl font-serif font-bold text-white">{scores.length} / 5 Rounds</span>
             <span
               className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
-                isFullyQualified ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                isFullyQualified ? 'bg-[#D4AF37]/20 text-[#F5E6AB] border border-[#D4AF37]/40' : 'bg-white/10 text-slate-300 border border-white/10'
               }`}
             >
               {isFullyQualified ? 'Full Entry Ready' : `${5 - scores.length} More Needed`}
             </span>
           </div>
-          <p className="text-[11px] text-slate-400">Requires 5 valid rolling scores & active subscription.</p>
+          <p className="text-[11px] text-slate-400 font-light">Requires 5 valid rolling scores & active subscription.</p>
         </div>
 
         {/* Average Score */}
-        <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-1">
+        <div className="glass-panel p-5 rounded-2xl border border-[#D4AF37]/20 space-y-1">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">5-ROUND AVERAGE</span>
-          <div className="text-2xl font-black text-amber-400 mt-1">{averageScore} pts</div>
-          <p className="text-[11px] text-slate-400">Calculated across your rolling 5 entries.</p>
+          <div className="text-2xl font-serif font-bold gold-text mt-1">{averageScore} pts</div>
+          <p className="text-[11px] text-slate-400 font-light">Calculated across your rolling 5 entries.</p>
         </div>
 
         {/* Peak Score */}
-        <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-1">
+        <div className="glass-panel p-5 rounded-2xl border border-[#D4AF37]/20 space-y-1">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">SEASON PEAK SCORE</span>
-          <div className="text-2xl font-black text-emerald-400 mt-1">{peakScore > 0 ? `${peakScore} pts` : 'N/A'}</div>
-          <p className="text-[11px] text-slate-400">Highest Stableford round logged.</p>
+          <div className="text-2xl font-serif font-bold text-[#F5E6AB] mt-1">{peakScore > 0 ? `${peakScore} pts` : 'N/A'}</div>
+          <p className="text-[11px] text-slate-400 font-light">Highest Stableford round logged.</p>
         </div>
       </div>
 
       {/* Scores Table / List */}
-      <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-6">
+      <div className="glass-panel p-6 rounded-3xl border border-[#D4AF37]/30 space-y-6">
         <div className="flex items-center justify-between border-b border-white/10 pb-4">
-          <h3 className="text-base font-bold text-white flex items-center gap-2">
-            <Target className="w-4 h-4 text-orange-400" />
+          <h3 className="text-base font-serif font-bold text-white flex items-center gap-2">
+            <Target className="w-4 h-4 text-[#D4AF37]" />
             Active 5-Round Scorecard (Most Recent First)
           </h3>
           <button onClick={fetchScores} className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/5 transition">
@@ -263,18 +291,18 @@ export default function MyScoresPage() {
           </div>
         ) : scores.length === 0 ? (
           <div className="text-center py-12 space-y-4">
-            <div className="w-16 h-16 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center mx-auto text-2xl">
+            <div className="w-16 h-16 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#D4AF37] flex items-center justify-center mx-auto text-2xl font-serif">
               ⛳
             </div>
             <div className="space-y-1">
-              <h4 className="text-lg font-bold text-white">No Golf Scores Logged Yet</h4>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              <h4 className="text-lg font-serif font-bold text-white">No Golf Scores Logged Yet</h4>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto font-light">
                 Start logging your 18-hole Stableford scores (1–45) to build your rolling 5 score entry for the monthly draw.
               </p>
             </div>
             <button
               onClick={handleOpenAdd}
-              className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl transition"
+              className="px-6 py-3 btn-gold-primary text-slate-950 font-bold text-xs rounded-xl transition uppercase tracking-wider"
             >
               Log Your First Round
             </button>
@@ -284,28 +312,28 @@ export default function MyScoresPage() {
             {scores.map((s, idx) => (
               <div
                 key={s.id}
-                className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                className="p-4 rounded-2xl bg-[#05070A] border border-[#D4AF37]/20 hover:border-[#D4AF37]/40 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-amber-500/30 flex items-center justify-center font-black text-xl text-amber-400 shrink-0">
+                  <div className="w-12 h-12 rounded-2xl bg-[#121824] border border-[#D4AF37]/40 flex items-center justify-center font-bold font-mono text-xl text-[#F5E6AB] shrink-0">
                     {s.score}
                   </div>
 
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-white text-sm">{s.courseName || 'Local Course'}</span>
+                      <span className="font-serif font-bold text-white text-sm">{s.courseName || 'Local Course'}</span>
                       {idx === 0 && (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[9px] font-bold border border-emerald-500/30">
+                        <span className="px-2 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#F5E6AB] text-[9px] font-bold border border-[#D4AF37]/40 uppercase tracking-wider">
                           Latest
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 text-xs text-slate-400">
+                    <div className="flex items-center gap-4 text-xs text-slate-400 font-mono">
                       <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                        <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" />
                         {s.date}
                       </span>
-                      {s.notes && <span className="italic text-slate-400 truncate max-w-xs">&quot;{s.notes}&quot;</span>}
+                      {s.notes && <span className="italic text-slate-400 truncate max-w-xs font-sans">&quot;{s.notes}&quot;</span>}
                     </div>
                   </div>
                 </div>
@@ -316,7 +344,7 @@ export default function MyScoresPage() {
                     className="p-2 text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition text-xs flex items-center gap-1"
                     title="Edit round"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-4 h-4 text-[#D4AF37]" />
                   </button>
 
                   <button
@@ -339,7 +367,7 @@ export default function MyScoresPage() {
           <div className="w-full max-w-md bg-[#121724] border border-white/15 rounded-3xl p-6 shadow-2xl space-y-5 text-xs text-slate-200">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Target className="w-4 h-4 text-orange-400" />
+                <Target className="w-4 h-4 text-[#D4AF37]" />
                 {editingScoreId ? 'Edit Golf Round' : 'Log New Stableford Round'}
               </h3>
               <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-white">
@@ -358,7 +386,7 @@ export default function MyScoresPage() {
                   onChange={(e) => setScoreInput(e.target.value)}
                   placeholder="e.g. 38"
                   required
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-white/15 rounded-xl text-sm text-white font-bold focus:border-orange-400 focus:outline-none"
+                  className="w-full px-4 py-2.5 bg-slate-950 border border-white/15 rounded-xl text-sm text-white font-bold focus:border-[#D4AF37] focus:outline-none"
                 />
               </div>
 
@@ -369,7 +397,7 @@ export default function MyScoresPage() {
                   value={dateInput}
                   onChange={(e) => setDateInput(e.target.value)}
                   required
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-white/15 rounded-xl text-xs text-white focus:border-orange-400 focus:outline-none"
+                  className="w-full px-4 py-2.5 bg-slate-950 border border-white/15 rounded-xl text-xs text-white focus:border-[#D4AF37] focus:outline-none"
                 />
               </div>
 
@@ -380,7 +408,7 @@ export default function MyScoresPage() {
                   value={courseInput}
                   onChange={(e) => setCourseInput(e.target.value)}
                   placeholder="e.g. Royal Melbourne"
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-white/15 rounded-xl text-xs text-white focus:border-orange-400 focus:outline-none"
+                  className="w-full px-4 py-2.5 bg-slate-950 border border-white/15 rounded-xl text-xs text-white focus:border-[#D4AF37] focus:outline-none"
                 />
               </div>
 
@@ -391,7 +419,7 @@ export default function MyScoresPage() {
                   value={notesInput}
                   onChange={(e) => setNotesInput(e.target.value)}
                   placeholder="e.g. Windy day, great putting"
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-white/15 rounded-xl text-xs text-white focus:border-orange-400 focus:outline-none"
+                  className="w-full px-4 py-2.5 bg-slate-950 border border-white/15 rounded-xl text-xs text-white focus:border-[#D4AF37] focus:outline-none"
                 />
               </div>
 
@@ -406,7 +434,7 @@ export default function MyScoresPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-500/25"
+                  className="flex-1 py-3 btn-gold-primary text-slate-950 font-bold rounded-xl shadow-lg uppercase tracking-wider"
                 >
                   {isSubmitting ? 'Saving...' : editingScoreId ? 'Update Round' : 'Save Round'}
                 </button>
@@ -418,3 +446,4 @@ export default function MyScoresPage() {
     </div>
   );
 }
+
