@@ -4,6 +4,7 @@ import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import DemoSwitcher from '@/components/common/DemoSwitcher';
 import AnimatedGolfBackground from '@/components/common/AnimatedGolfBackground';
+import LiveGolfChatbot from '@/components/common/LiveGolfChatbot';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { AuthProvider } from '@/context/AuthContext';
@@ -27,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" suppressHydrationWarning>
       <body className="min-h-screen flex flex-col bg-[#0b0e14] text-slate-100 antialiased selection:bg-orange-500 selection:text-white relative">
         <AuthProvider>
           <ThemeProvider>
@@ -39,6 +40,7 @@ export default function RootLayout({
                   <main className="flex-1 focus:outline-none" id="main-content">{children}</main>
                   <Footer />
                 </div>
+                <LiveGolfChatbot />
                 <DemoSwitcher />
               </ToastProvider>
             </LanguageProvider>

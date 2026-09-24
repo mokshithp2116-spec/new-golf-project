@@ -263,45 +263,57 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
               </div>
             </div>
 
-            {/* Simulated PCI-Compliant Stripe Payment (§ 04) */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-xs text-slate-300 font-semibold">
-                <span className="flex items-center gap-1.5">
-                  <CreditCard className="w-4 h-4 text-slate-400" />
-                  Payment Details (Stripe PCI-Compliant)
-                </span>
-                <span className="flex items-center gap-1 text-[10px] text-emerald-400">
-                  <Lock className="w-3 h-3" />
-                  256-Bit Encrypted
-                </span>
-              </div>
+            {/* Simulated PCI-Compliant Stripe Payment (§ 04) - Only show card inputs if NOT already an active subscriber */}
+            {!user || user.subscriptionStatus !== 'active' ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs text-slate-300 font-semibold">
+                  <span className="flex items-center gap-1.5">
+                    <CreditCard className="w-4 h-4 text-slate-400" />
+                    Payment Details (Stripe PCI-Compliant)
+                  </span>
+                  <span className="flex items-center gap-1 text-[10px] text-emerald-400">
+                    <Lock className="w-3 h-3" />
+                    256-Bit Encrypted
+                  </span>
+                </div>
 
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-900 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 font-mono text-white"
-                  placeholder="Card number"
-                />
-                <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
                   <input
                     type="text"
-                    value={expiry}
-                    onChange={(e) => setExpiry(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 font-mono text-white"
-                    placeholder="MM/YY"
+                    value={cardNumber}
+                    onChange={(e) => setCardNumber(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-900 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 font-mono text-white"
+                    placeholder="Card number"
                   />
-                  <input
-                    type="text"
-                    value={cvc}
-                    onChange={(e) => setCvc(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 font-mono text-white"
-                    placeholder="CVC"
-                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={expiry}
+                      onChange={(e) => setExpiry(e.target.value)}
+                      className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 font-mono text-white"
+                      placeholder="MM/YY"
+                    />
+                    <input
+                      type="text"
+                      value={cvc}
+                      onChange={(e) => setCvc(e.target.value)}
+                      className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 font-mono text-white"
+                      placeholder="CVC"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="text-slate-300">
+                    Active Payment Method: <strong className="text-white font-mono">•••• 4242</strong> (Stripe Verified)
+                  </span>
+                </div>
+                <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">AUTO-RENEWAL ACTIVE</span>
+              </div>
+            )}
 
             <button
               type="submit"
@@ -311,7 +323,12 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
               {isProcessing ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Securing Your Subscription...
+                  Updating Your Subscription Settings...
+                </>
+              ) : user && user.subscriptionStatus === 'active' ? (
+                <>
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  Save & Update Plan to {cycle === 'monthly' ? '1 Month ($19/mo)' : '1 Year ($190/yr)'}
                 </>
               ) : (
                 <>
