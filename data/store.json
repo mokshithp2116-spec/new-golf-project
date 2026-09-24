@@ -119,9 +119,9 @@
       "password_hash": "$2b$10$cbORG/xvZCFzqUWS7uZjuuAYp18uZm2cc5QIFsQxI6sRB.3wNlLUC",
       "role": "subscriber",
       "subscriptionStatus": "active",
-      "billingCycle": "yearly",
+      "billingCycle": "monthly",
       "subscriptionStartDate": "2026-09-24T20:48:07.138Z",
-      "subscriptionRenewalDate": "2027-09-24T20:49:00.902Z",
+      "subscriptionRenewalDate": "2026-10-24T21:37:16.938Z",
       "charityId": "charity-1",
       "charityContributionPct": 15,
       "handicap": 15,
@@ -350,6 +350,36 @@
   ],
   "winners": [],
   "activities": [
+    {
+      "id": "act-1790285836942-qq0q",
+      "user_id": "user-1790282887138",
+      "user_name": "Mokshithp1234",
+      "email": "mokshithp1234@gmail.com",
+      "action": "SUBSCRIBE",
+      "details": "Updated status to active",
+      "ip_address": "127.0.0.1",
+      "timestamp": "2026-09-24T21:37:16.943Z"
+    },
+    {
+      "id": "act-1790285829023-3m20",
+      "user_id": "user-1790282887138",
+      "user_name": "Mokshithp1234",
+      "email": "mokshithp1234@gmail.com",
+      "action": "LOGIN",
+      "details": "User logged in to platform",
+      "ip_address": "::1",
+      "timestamp": "2026-09-24T21:37:09.023Z"
+    },
+    {
+      "id": "act-1790285812893-f7xz",
+      "user_id": "user-1790282887138",
+      "user_name": "Mokshithp1234",
+      "email": "mokshithp1234@gmail.com",
+      "action": "LOGOUT",
+      "details": "User logged out",
+      "ip_address": "127.0.0.1",
+      "timestamp": "2026-09-24T21:36:52.893Z"
+    },
     {
       "id": "act-1790282940902-yx8z",
       "user_id": "user-1790282887138",

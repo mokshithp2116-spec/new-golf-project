@@ -24,8 +24,10 @@ interface PlanOption {
   badge?: string;
 }
 
+import { authenticatedFetch, handleAuthRedirect } from '@/lib/authClient';
+
 export default function SubscriptionModal({ isOpen, onClose, onSuccess, initialCycle }: SubscriptionModalProps) {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, isLoading } = useAuth();
   
   const [currentPlan, setCurrentPlan] = useState<any>(null);
   const [eligiblePlans, setEligiblePlans] = useState<PlanOption[]>([]);
@@ -66,7 +68,13 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess, initialC
 
     const fetchServerPlans = async () => {
       try {
-        const res = await fetch('/api/user/subscription', { cache: 'no-store' });
+        const res = await authenticatedFetch('/api/user/subscription', { cache: 'no-store' });
+        if (res.status === 401) {
+          console.error('[SubscriptionModal] 401 Unauthorized loading subscription. Closing modal & redirecting.');
+          onClose();
+          handleAuthRedirect();
+          return;
+        }
         const data = await res.json();
         if (data.success) {
           setCurrentPlan(data.currentPlan);
@@ -80,7 +88,7 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess, initialC
             setSelectedCycle(data.eligiblePlans[0].billingCycle);
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('[SubscriptionModal Fetch Error]:', err);
       }
     };
@@ -104,7 +112,7 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess, initialC
       const targetEmail = user?.email || emailInput || 'mokshithp1234@gmail.com';
       const targetName = user?.name || nameInput || 'Mokshithp1234';
 
-      const res = await fetch('/api/user/subscription', {
+      const res = await authenticatedFetch('/api/user/subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -117,6 +125,15 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess, initialC
           subscriptionStatus: 'active',
         }),
       });
+
+      if (res.status === 401) {
+        console.error('[SubscriptionModal] 401 Unauthorized updating plan. Closing modal & redirecting.');
+        setIsProcessing(false);
+        onClose();
+        handleAuthRedirect();
+        return;
+      }
+
       const resData = await res.json();
 
       if (!resData.success) {
@@ -323,10 +340,20 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess, initialC
               </div>
             </div>
 
-            {/* PAYMENT DETAILS (Only shown for fresh plan purchase or fallback) */}
-            {!user || user.subscriptionStatus !== 'active' ? (
+            {/* PAYMENT DETAILS (Only shown when fully authenticated active session and plan details are loaded) */}
+            {!isLoading && user?.id && currentPlan && user.subscriptionStatus === 'active' ? (
+              <div className="p-3.5 bg-[#D4AF37]/10 border border-[#D4AF37]/25 rounded-2xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-[#D4AF37] shrink-0" />
+                  <span className="text-slate-300">
+                    Payment Method on File: <strong className="text-white font-mono">•••• 4242</strong>
+                  </span>
+                </div>
+                <span className="text-[10px] text-[#D4AF37] font-bold uppercase tracking-wider">VERIFIED</span>
+              </div>
+            ) : (
               <div className="space-y-3">
-                {!user && (
+                {(!user || !user.id) && (
                   <div className="space-y-2">
                     <label className="block text-xs font-semibold text-slate-300 font-serif">
                       Golfer Account & Email Details
@@ -387,16 +414,6 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess, initialC
                     />
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="p-3.5 bg-[#D4AF37]/10 border border-[#D4AF37]/25 rounded-2xl flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-[#D4AF37] shrink-0" />
-                  <span className="text-slate-300">
-                    Payment Method on File: <strong className="text-white font-mono">•••• 4242</strong>
-                  </span>
-                </div>
-                <span className="text-[10px] text-[#D4AF37] font-bold uppercase tracking-wider">VERIFIED</span>
               </div>
             )}
 

@@ -35,7 +35,8 @@ export async function verifySessionToken(token: string): Promise<JWTPayload | nu
   try {
     const { payload } = await jwtVerify(token, key);
     return payload as unknown as JWTPayload;
-  } catch {
+  } catch (err: any) {
+    console.error('[Auth Error] JWT verification failed:', err?.message || err);
     return null;
   }
 }
@@ -47,11 +48,16 @@ export async function getSessionUser(): Promise<JWTPayload | null> {
   try {
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value || cookieStore.get(ADMIN_COOKIE_NAME)?.value;
-    if (!sessionCookie) return null;
+    if (!sessionCookie) {
+      console.log('[Auth] No session cookie found in request headers/cookies.');
+      return null;
+    }
 
     // First try verifying as JWT token
     const verified = await verifySessionToken(sessionCookie);
-    if (verified) return verified;
+    if (verified) {
+      return verified;
+    }
 
     // Fallback parsing if JSON string cookie (for backwards compatibility)
     try {
@@ -68,8 +74,10 @@ export async function getSessionUser(): Promise<JWTPayload | null> {
       // not JSON
     }
 
+    console.warn('[Auth Error] Session cookie present but failed verification or token expired.');
     return null;
-  } catch (err) {
+  } catch (err: any) {
+    console.error('[Auth Error] Error retrieving session user:', err?.message || err);
     return null;
   }
 }

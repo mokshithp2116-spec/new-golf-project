@@ -35,37 +35,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchSession = async () => {
     try {
-      const res = await fetch('/api/auth/session', { cache: 'no-store' });
+      console.log('[AuthContext] Fetching fresh session...');
+      const res = await fetch('/api/auth/session', {
+        cache: 'no-store',
+        credentials: 'include',
+      });
       const data = await res.json();
       if (data.success && data.user) {
+        console.log('[AuthContext] Session verified for:', data.user.email);
         setUser(data.user);
         setCurrentUser(data.user.id);
         updateUser(data.user);
         setIsLoading(false);
         return;
+      } else {
+        console.warn('[AuthContext] Server returned unauthenticated session status:', data);
       }
-    } catch {
-      // ignore
+    } catch (err: any) {
+      console.error('[AuthContext Error] Failed fetching server session:', err?.message || err);
     }
 
     // Fallback: Check localStorage user if server cookie session was missing
     const localUser = getCurrentUser();
     if (localUser) {
+      console.log('[AuthContext] Restoring user from local storage fallback:', localUser.email);
       setUser(localUser);
       try {
         const loginRes = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ email: localUser.email, password: 'defaultPassword123' }),
         });
         const loginData = await loginRes.json();
         if (loginData.success && loginData.user) {
+          console.log('[AuthContext] Re-authenticated session cookie for:', loginData.user.email);
           setUser(loginData.user);
           setCurrentUser(loginData.user.id);
           updateUser(loginData.user);
         }
-      } catch {
-        // ignore
+      } catch (err: any) {
+        console.error('[AuthContext Error] Re-authentication fallback failed:', err?.message || err);
       }
     } else {
       setUser(null);
@@ -76,6 +86,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchSession();
+
+    // Auto-refresh token every 10 minutes to prevent expiration during active usage
+    const refreshInterval = setInterval(() => {
+      console.log('[AuthContext] Periodic 10-minute session refresh running...');
+      fetchSession();
+    }, 10 * 60 * 1000);
+
+    // Refresh token on window focus / tab re-activation
+    const handleFocus = () => {
+      console.log('[AuthContext] Window focused. Syncing fresh session...');
+      fetchSession();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleFocus);
+    }
+
+    return () => {
+      clearInterval(refreshInterval);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', handleFocus);
+      }
+    };
   }, []);
 
   const login = async (email: string, pass: string) => {
@@ -83,6 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email, password: pass }),
       });
       const data = await res.json();
@@ -93,7 +127,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true, user: data.user };
       }
       return { success: false, message: data.message || 'Invalid credentials.' };
-    } catch (err) {
+    } catch (err: any) {
+      console.error('[AuthContext Error] Login request failed:', err?.message || err);
       return { success: false, message: 'Network error. Please try again.' };
     }
   };
@@ -110,6 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           name,
           email,
@@ -127,16 +163,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true, user: data.user };
       }
       return { success: false, message: data.message || 'Signup failed.' };
-    } catch (err) {
+    } catch (err: any) {
+      console.error('[AuthContext Error] Signup request failed:', err?.message || err);
       return { success: false, message: 'Network error. Please try again.' };
     }
   };
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {
-      // ignore
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch (err: any) {
+      console.error('[AuthContext Error] Logout request failed:', err?.message || err);
     } finally {
       setUser(null);
       setCurrentUser(null);
